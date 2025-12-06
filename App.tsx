@@ -11,11 +11,13 @@ import { ExportEvaluation, EvaluationSuccess, ImageAnnotation } from './pages/Ev
 import { Settings, Support } from './pages/SettingsSupport';
 import { RoutePath } from './types';
 import { ClinicProvider } from './context/ClinicContext';
+import { AuthProvider } from './context/AuthContext';
 
 const App = () => {
   return (
-    <ClinicProvider>
-      <Router>
+    <AuthProvider>
+      <ClinicProvider>
+        <Router>
         <Routes>
           {/* Public Routes */}
           <Route path={RoutePath.LOGIN} element={<Login />} />
@@ -51,7 +53,8 @@ const App = () => {
           </Route>
         </Routes>
       </Router>
-    </ClinicProvider>
+      </ClinicProvider>
+    </AuthProvider>
   );
 };
 

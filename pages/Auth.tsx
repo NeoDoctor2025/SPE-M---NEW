@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { RoutePath } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export const Login = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const { error: signInError } = await signIn(email, password);
+
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+    } else {
+      navigate(RoutePath.DASHBOARD);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row font-sans">
@@ -46,23 +67,25 @@ export const Login = () => {
             <p className="text-slate-500 font-light">Insira suas credenciais para inicializar o sistema.</p>
           </div>
 
-          <form
-            className="flex flex-col gap-6"
-            onSubmit={(e) => {
-              e.preventDefault();
-              navigate(RoutePath.DASHBOARD);
-            }}
-          >
+          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 text-sm">
+                {error}
+              </div>
+            )}
+
             <label className="flex flex-col gap-2 group">
               <span className="font-mono text-xs uppercase tracking-wider text-slate-500 group-focus-within:text-primary transition-colors">Identificação (E-mail)</span>
               <input
                 type="email"
                 className="w-full bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 px-4 py-3 focus:border-primary outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 font-mono text-sm text-slate-900 dark:text-white"
                 placeholder="seuemail@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </label>
-            
+
             <label className="flex flex-col gap-2 group">
               <div className="flex justify-between items-center">
                 <span className="font-mono text-xs uppercase tracking-wider text-slate-500 group-focus-within:text-primary transition-colors">Chave de Acesso (Senha)</span>
@@ -75,6 +98,8 @@ export const Login = () => {
                   type="password"
                   className="w-full bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 px-4 py-3 focus:border-primary outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 font-mono text-sm text-slate-900 dark:text-white"
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
@@ -82,10 +107,11 @@ export const Login = () => {
 
             <button
               type="submit"
-              className="mt-4 w-full bg-secondary dark:bg-primary text-white font-medium tracking-wide py-4 hover:bg-slate-800 dark:hover:bg-primary-dark transition shadow-lg flex justify-center items-center gap-2 group"
+              disabled={loading}
+              className="mt-4 w-full bg-secondary dark:bg-primary text-white font-medium tracking-wide py-4 hover:bg-slate-800 dark:hover:bg-primary-dark transition shadow-lg flex justify-center items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>INICIALIZAR SISTEMA</span>
-              <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              <span>{loading ? 'CARREGANDO...' : 'INICIALIZAR SISTEMA'}</span>
+              {!loading && <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>}
             </button>
           </form>
 
@@ -107,6 +133,30 @@ export const Login = () => {
 };
 
 export const Signup = () => {
+  const navigate = useNavigate();
+  const { signUp } = useAuth();
+  const [fullName, setFullName] = useState('');
+  const [crm, setCrm] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const { error: signUpError } = await signUp(email, password, fullName, crm);
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+    } else {
+      navigate(RoutePath.DASHBOARD);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background dark:bg-slate-950">
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
@@ -125,7 +175,13 @@ export const Signup = () => {
             </p>
           </div>
 
-          <form className="flex flex-col gap-5">
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 text-sm">
+                {error}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-5">
                 <label className="flex flex-col gap-1.5">
                 <span className="font-mono text-xs uppercase tracking-wider text-slate-500">Nome Completo</span>
@@ -133,6 +189,9 @@ export const Signup = () => {
                     type="text"
                     className="form-input w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 focus:border-primary focus:ring-0 outline-none transition-all text-slate-900 dark:text-white"
                     placeholder="Dr. Seu Nome"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
                 />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -141,16 +200,21 @@ export const Signup = () => {
                     type="text"
                     className="form-input w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 focus:border-primary focus:ring-0 outline-none transition-all text-slate-900 dark:text-white"
                     placeholder="000000/UF"
+                    value={crm}
+                    onChange={(e) => setCrm(e.target.value)}
                 />
                 </label>
             </div>
-            
+
             <label className="flex flex-col gap-1.5">
               <span className="font-mono text-xs uppercase tracking-wider text-slate-500">E-mail Profissional</span>
               <input
                 type="email"
                 className="form-input w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 focus:border-primary focus:ring-0 outline-none transition-all text-slate-900 dark:text-white"
                 placeholder="email@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -159,6 +223,9 @@ export const Signup = () => {
                 type="password"
                 className="form-input w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 focus:border-primary focus:ring-0 outline-none transition-all text-slate-900 dark:text-white"
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </label>
 
@@ -167,14 +234,19 @@ export const Signup = () => {
                 type="checkbox"
                 id="terms"
                 className="mt-1 w-4 h-4 text-primary border-slate-300 rounded-sm focus:ring-0"
+                required
               />
               <label htmlFor="terms" className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Declaro que sou um profissional de saúde habilitado e concordo com os <a href="#" className="text-primary border-b border-primary/20 hover:border-primary">Termos de Uso</a> e <a href="#" className="text-primary border-b border-primary/20 hover:border-primary">Política de Privacidade</a>.
               </label>
             </div>
 
-            <button className="bg-primary text-white font-medium tracking-wide py-3 hover:bg-primary-dark transition-colors shadow-sm mt-2">
-              ENVIAR SOLICITAÇÃO
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-primary text-white font-medium tracking-wide py-3 hover:bg-primary-dark transition-colors shadow-sm mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'CARREGANDO...' : 'ENVIAR SOLICITAÇÃO'}
             </button>
           </form>
 
@@ -215,6 +287,28 @@ export const Signup = () => {
 };
 
 export const ForgotPassword = () => {
+  const { resetPassword } = useAuth();
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const { error: resetError } = await resetPassword(email);
+
+    if (resetError) {
+      setError(resetError.message);
+      setLoading(false);
+    } else {
+      setSuccess(true);
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background dark:bg-slate-950 p-4">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-border dark:border-slate-800 shadow-atlas p-10 relative">
@@ -239,19 +333,38 @@ export const ForgotPassword = () => {
             </p>
         </div>
 
-        <form className="flex flex-col gap-6">
-          <label className="flex flex-col gap-1.5 text-left">
-            <span className="font-mono text-xs uppercase tracking-wider text-slate-500">E-mail Cadastrado</span>
-            <input
-                type="email"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus:border-primary focus:ring-0 outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-slate-900 dark:text-white"
-                placeholder="seuemail@dominio.com"
-            />
-          </label>
-          <button className="bg-primary text-white font-bold uppercase text-sm tracking-wider py-3 hover:bg-primary-dark transition shadow-sm">
-            Enviar Link de Recuperação
-          </button>
-        </form>
+        {success ? (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 text-sm text-center">
+            Link de recuperação enviado! Verifique seu e-mail.
+          </div>
+        ) : (
+          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 text-sm">
+                {error}
+              </div>
+            )}
+
+            <label className="flex flex-col gap-1.5 text-left">
+              <span className="font-mono text-xs uppercase tracking-wider text-slate-500">E-mail Cadastrado</span>
+              <input
+                  type="email"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus:border-primary focus:ring-0 outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-slate-900 dark:text-white"
+                  placeholder="seuemail@dominio.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-primary text-white font-bold uppercase text-sm tracking-wider py-3 hover:bg-primary-dark transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'ENVIANDO...' : 'Enviar Link de Recuperação'}
+            </button>
+          </form>
+        )}
 
         <div className="mt-8 text-center">
             <Link

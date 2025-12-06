@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { RoutePath } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const SidebarItem = ({
   to,
@@ -31,11 +33,34 @@ const SidebarItem = ({
 export const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
   const path = location.pathname;
   const [isDark, setIsDark] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [profile, setProfile] = useState<{ full_name: string; crm: string | null } | null>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate(RoutePath.LOGIN);
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('full_name, crm')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setProfile(data);
+          }
+        });
+    }
+  }, [user]);
 
   useEffect(() => {
     if (isDark) {
@@ -68,6 +93,22 @@ export const Layout = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate(RoutePath.LOGIN);
+  };
+
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background dark:bg-slate-950">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+          <p className="mt-4 text-sm text-slate-500">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background dark:bg-slate-950 text-slate-900 dark:text-slate-200">
       {/* Sidebar */}
@@ -87,8 +128,12 @@ export const Layout = () => {
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-success border-2 border-white dark:border-slate-900 rounded-full"></div>
             </div>
             <div className="flex flex-col">
-              <h1 className="font-serif text-lg font-bold text-slate-900 dark:text-white leading-tight">Dr. Isabella Rossi</h1>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Cardiologista</p>
+              <h1 className="font-serif text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                {profile?.full_name || 'Carregando...'}
+              </h1>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                {profile?.crm ? `CRM: ${profile.crm}` : 'Profissional'}
+              </p>
             </div>
           </div>
         </div>
@@ -146,13 +191,13 @@ export const Layout = () => {
         </nav>
 
         <div className="p-4 border-t border-border dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <Link
-            to={RoutePath.LOGIN}
-            className="flex items-center gap-3 px-2 py-2 text-slate-500 dark:text-slate-400 hover:text-critical transition-colors group"
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 px-2 py-2 text-slate-500 dark:text-slate-400 hover:text-critical transition-colors group w-full"
           >
             <span className="material-symbols-outlined group-hover:text-critical transition-colors">power_settings_new</span>
             <span className="font-mono text-xs uppercase tracking-wider">Encerrar Sessão</span>
-          </Link>
+          </button>
         </div>
       </aside>
 
