@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { RoutePath } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { isDevMode, getDevProfile } from '../lib/devMode';
 
 const SidebarItem = ({
   to,
@@ -49,16 +50,20 @@ export const Layout = () => {
 
   useEffect(() => {
     if (user) {
-      supabase
-        .from('profiles')
-        .select('full_name, crm')
-        .eq('id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            setProfile(data);
-          }
-        });
+      if (isDevMode()) {
+        setProfile(getDevProfile());
+      } else {
+        supabase
+          .from('profiles')
+          .select('full_name, crm')
+          .eq('id', user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              setProfile(data);
+            }
+          });
+      }
     }
   }, [user]);
 
@@ -231,7 +236,7 @@ export const Layout = () => {
 
           <div className="flex items-center gap-6">
             {/* Dark Mode Toggle */}
-            <button 
+            <button
                 onClick={() => setIsDark(!isDark)}
                 className="text-slate-400 hover:text-primary transition-colors"
                 title={isDark ? "Modo Claro" : "Modo Escuro"}
@@ -240,6 +245,13 @@ export const Layout = () => {
                     {isDark ? 'light_mode' : 'dark_mode'}
                 </span>
             </button>
+
+            {isDevMode() && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                <span className="font-mono text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Dev Mode</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-full">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>

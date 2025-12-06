@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Patient, Evaluation } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { isDevMode, DevStorage, generateMockData } from '../lib/devMode';
 
 interface ClinicContextType {
   patients: Patient[];
@@ -21,6 +22,8 @@ interface ClinicContextType {
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 
+const devStorage = new DevStorage();
+
 export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -29,6 +32,18 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
 
   const refreshPatients = async () => {
     if (!user) return;
+
+    if (isDevMode()) {
+      const storedPatients = devStorage.get<Patient[]>('patients');
+      if (storedPatients) {
+        setPatients(storedPatients);
+      } else {
+        const mockData = generateMockData();
+        devStorage.set('patients', mockData.patients);
+        setPatients(mockData.patients);
+      }
+      return;
+    }
 
     const { data, error } = await supabase
       .from('patients')
@@ -55,6 +70,18 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
 
   const refreshEvaluations = async () => {
     if (!user) return;
+
+    if (isDevMode()) {
+      const storedEvaluations = devStorage.get<Evaluation[]>('evaluations');
+      if (storedEvaluations) {
+        setEvaluations(storedEvaluations);
+      } else {
+        const mockData = generateMockData();
+        devStorage.set('evaluations', mockData.evaluations);
+        setEvaluations(mockData.evaluations);
+      }
+      return;
+    }
 
     const { data, error } = await supabase
       .from('evaluations')
@@ -90,6 +117,19 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
 
   const addPatient = async (patient: Omit<Patient, 'id'>): Promise<Patient | null> => {
     if (!user) return null;
+
+    if (isDevMode()) {
+      const newPatient: Patient = {
+        ...patient,
+        id: `patient-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
+
+      const currentPatients = devStorage.get<Patient[]>('patients') || [];
+      const updatedPatients = [newPatient, ...currentPatients];
+      devStorage.set('patients', updatedPatients);
+      setPatients(updatedPatients);
+      return newPatient;
+    }
 
     const { data, error } = await supabase
       .from('patients')
@@ -135,6 +175,16 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
   const updatePatient = async (id: string, updates: Partial<Patient>): Promise<boolean> => {
     if (!user) return false;
 
+    if (isDevMode()) {
+      const currentPatients = devStorage.get<Patient[]>('patients') || [];
+      const updatedPatients = currentPatients.map(p =>
+        p.id === id ? { ...p, ...updates } : p
+      );
+      devStorage.set('patients', updatedPatients);
+      setPatients(updatedPatients);
+      return true;
+    }
+
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.email !== undefined) dbUpdates.email = updates.email;
@@ -165,6 +215,14 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
   const deletePatient = async (id: string): Promise<boolean> => {
     if (!user) return false;
 
+    if (isDevMode()) {
+      const currentPatients = devStorage.get<Patient[]>('patients') || [];
+      const updatedPatients = currentPatients.filter(p => p.id !== id);
+      devStorage.set('patients', updatedPatients);
+      setPatients(updatedPatients);
+      return true;
+    }
+
     const { error } = await supabase
       .from('patients')
       .delete()
@@ -182,6 +240,19 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
 
   const addEvaluation = async (evaluation: Omit<Evaluation, 'id'>): Promise<Evaluation | null> => {
     if (!user) return null;
+
+    if (isDevMode()) {
+      const newEvaluation: Evaluation = {
+        ...evaluation,
+        id: `eval-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
+
+      const currentEvaluations = devStorage.get<Evaluation[]>('evaluations') || [];
+      const updatedEvaluations = [newEvaluation, ...currentEvaluations];
+      devStorage.set('evaluations', updatedEvaluations);
+      setEvaluations(updatedEvaluations);
+      return newEvaluation;
+    }
 
     const { data, error } = await supabase
       .from('evaluations')
@@ -223,6 +294,16 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
   const updateEvaluation = async (id: string, updates: Partial<Evaluation>): Promise<boolean> => {
     if (!user) return false;
 
+    if (isDevMode()) {
+      const currentEvaluations = devStorage.get<Evaluation[]>('evaluations') || [];
+      const updatedEvaluations = currentEvaluations.map(e =>
+        e.id === id ? { ...e, ...updates } : e
+      );
+      devStorage.set('evaluations', updatedEvaluations);
+      setEvaluations(updatedEvaluations);
+      return true;
+    }
+
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.date !== undefined) dbUpdates.date = updates.date;
@@ -247,6 +328,14 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
 
   const deleteEvaluation = async (id: string): Promise<boolean> => {
     if (!user) return false;
+
+    if (isDevMode()) {
+      const currentEvaluations = devStorage.get<Evaluation[]>('evaluations') || [];
+      const updatedEvaluations = currentEvaluations.filter(e => e.id !== id);
+      devStorage.set('evaluations', updatedEvaluations);
+      setEvaluations(updatedEvaluations);
+      return true;
+    }
 
     const { error } = await supabase
       .from('evaluations')

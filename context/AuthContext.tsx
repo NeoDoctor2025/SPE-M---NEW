@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { isDevMode, getDevUser } from '../lib/devMode';
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +19,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isDevMode()) {
+      setUser(getDevUser());
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -33,6 +40,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, crm?: string) => {
+    if (isDevMode()) {
+      setUser(getDevUser());
+      return { error: null };
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -58,6 +70,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (isDevMode()) {
+      setUser(getDevUser());
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -67,10 +84,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (isDevMode()) {
+      setUser(null);
+      return;
+    }
+
     await supabase.auth.signOut();
   };
 
   const resetPassword = async (email: string) => {
+    if (isDevMode()) {
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     return { error };
   };
