@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import type { Evaluation, Patient } from '../types';
 
 export const exportEvaluationToPDF = (evaluation: Evaluation, patient: Patient) => {
