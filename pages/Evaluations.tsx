@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { RoutePath } from '../types';
 
 export const EvaluationsList = () => {
+  const navigate = useNavigate();
   const evaluations = [
     { id: 'EV-001', patient: 'Carlos Almeida', title: 'Avaliação Cardiológica Anual', status: 'Concluído', score: 92, date: '15/07/2024' },
     { id: 'EV-002', patient: 'Beatriz Costa', title: 'Check-up Neurológico', status: 'Rascunho', score: null, date: '12/07/2024' },
@@ -78,8 +80,20 @@ export const EvaluationsList = () => {
                         </td>
                         <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{ev.date}</td>
                         <td className="px-6 py-4 text-right space-x-2">
-                            <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-sm transition-colors" title="Visualizar"><span className="material-symbols-outlined text-lg">visibility</span></button>
-                            <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-sm transition-colors" title="Exportar"><span className="material-symbols-outlined text-lg">download</span></button>
+                            <button 
+                                onClick={() => navigate(RoutePath.EVALUATIONS_DETAILS.replace(':id', ev.id))}
+                                className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-sm transition-colors" 
+                                title="Visualizar"
+                            >
+                                <span className="material-symbols-outlined text-lg">visibility</span>
+                            </button>
+                            <button 
+                                onClick={() => navigate(RoutePath.EVALUATIONS_EXPORT.replace(':id', ev.id))}
+                                className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-sm transition-colors" 
+                                title="Exportar"
+                            >
+                                <span className="material-symbols-outlined text-lg">download</span>
+                            </button>
                             <button className="p-1.5 text-slate-400 hover:text-critical hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-sm transition-colors" title="Excluir"><span className="material-symbols-outlined text-lg">delete</span></button>
                         </td>
                     </tr>
@@ -160,6 +174,8 @@ export const SelectPatientForEvaluation = () => {
 export const EvaluationWizard = () => {
     const [elasticity, setElasticity] = useState(3);
     const [wrinkles, setWrinkles] = useState(2);
+    const navigate = useNavigate();
+    const { patientId } = useParams();
 
     return (
         <div className="flex flex-col h-full">
@@ -268,8 +284,11 @@ export const EvaluationWizard = () => {
                     </div>
 
                     {/* Anatomy Viewfinder */}
-                    <div className="bg-white dark:bg-slate-900 p-1 border border-border dark:border-slate-800 shadow-atlas">
-                        <div className="bg-slate-900 aspect-square relative flex items-center justify-center overflow-hidden">
+                    <div 
+                        className="bg-white dark:bg-slate-900 p-1 border border-border dark:border-slate-800 shadow-atlas cursor-pointer group"
+                        onClick={() => navigate(RoutePath.EVALUATIONS_CANVAS.replace(':id', 'temp'))}
+                    >
+                        <div className="bg-slate-900 aspect-square relative flex items-center justify-center overflow-hidden group-hover:ring-1 ring-primary transition-all">
                             {/* Viewfinder UI */}
                             <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/30"></div>
                             <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/30"></div>
@@ -277,8 +296,12 @@ export const EvaluationWizard = () => {
                             <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/30"></div>
                             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-10"></div>
                             
-                            <span className="material-symbols-outlined text-6xl text-white/20">face</span>
+                            <span className="material-symbols-outlined text-6xl text-white/20 group-hover:text-white/40 transition-colors">face</span>
                             <div className="absolute bottom-2 right-2 font-mono text-[10px] text-white/40">CANVAS_V1</div>
+                            
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                                <span className="font-mono text-xs text-white uppercase tracking-wider border border-white/50 px-3 py-1">Expandir</span>
+                            </div>
                         </div>
                         <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-border dark:border-slate-700 text-center">
                             <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Mapeamento Anatômico</p>
@@ -291,9 +314,12 @@ export const EvaluationWizard = () => {
                 <button className="px-6 py-2.5 text-slate-500 dark:text-slate-400 font-mono text-xs uppercase tracking-wider hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">arrow_back</span> Anterior
                 </button>
-                <button className="px-8 py-3 bg-primary text-white font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-primary-dark transition-colors flex items-center gap-2">
-                    Próximo Passo
-                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                <button 
+                    onClick={() => navigate(RoutePath.EVALUATIONS_SUCCESS.replace(':id', 'new'))}
+                    className="px-8 py-3 bg-primary text-white font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
+                >
+                    Finalizar Protocolo
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
                 </button>
             </div>
         </div>
@@ -301,6 +327,8 @@ export const EvaluationWizard = () => {
 }
 
 export const EvaluationDetails = () => {
+    const navigate = useNavigate();
+    
     return (
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 mb-8 border-b border-border dark:border-slate-800 pb-4">
@@ -363,7 +391,7 @@ export const EvaluationDetails = () => {
                 <div className="w-full lg:w-80">
                     <div className="sticky top-6 space-y-6">
                         <div className="bg-white dark:bg-slate-900 border border-border dark:border-slate-800 p-1 shadow-atlas">
-                            <div className="bg-slate-900 aspect-[3/4] relative">
+                            <div className="bg-slate-900 aspect-[3/4] relative group cursor-pointer" onClick={() => navigate(RoutePath.EVALUATIONS_CANVAS.replace(':id', '88'))}>
                                 <img 
                                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiE-TZydS1nrIrpnyIAd8sw7lagGWG1UFns-JE5S5SZYibBI2soU8O6vXfmADkIOt3AipAGr1da-NbkJwO2duRbgebWYR7KveYPijqJL5trywgkbqI_lrTLHAVXzoDAT94IgHZboQ4PsoHU-Ewh0f5uVGlt4foXUdeHESraqR5cgPOZ_XMwF9xjtV8j1yHL7iq65KLsZqDre_OF0yZxQ3oxhIL3KkY-mNZHs68PAQtFy8G1Ih0lnrYYjxPRlxhm9T1S6TV_KkOB_8v" 
                                     alt="Anatomy" 
@@ -373,14 +401,23 @@ export const EvaluationDetails = () => {
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                                     <p className="font-mono text-[10px] text-white uppercase tracking-widest text-center">Visualização Anatômica</p>
                                 </div>
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-white text-4xl">zoom_in</span>
+                                </div>
                             </div>
                         </div>
                         
                         <div className="flex flex-col gap-3">
-                            <button className="w-full bg-secondary dark:bg-primary text-white font-mono text-xs uppercase tracking-widest py-4 hover:bg-slate-800 dark:hover:bg-primary-dark transition shadow-sm flex items-center justify-center gap-2">
+                            <button 
+                                onClick={() => navigate(RoutePath.EVALUATIONS_EXPORT.replace(':id', '88'))}
+                                className="w-full bg-secondary dark:bg-primary text-white font-mono text-xs uppercase tracking-widest py-4 hover:bg-slate-800 dark:hover:bg-primary-dark transition shadow-sm flex items-center justify-center gap-2"
+                            >
                                 <span className="material-symbols-outlined text-sm">picture_as_pdf</span> Exportar PDF
                             </button>
-                            <button className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase tracking-widest py-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center gap-2">
+                            <button 
+                                onClick={() => navigate(RoutePath.EVALUATIONS_COMPARE)}
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase tracking-widest py-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center gap-2"
+                            >
                                 <span className="material-symbols-outlined text-sm">compare_arrows</span> Comparar
                             </button>
                         </div>

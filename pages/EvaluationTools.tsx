@@ -1,9 +1,11 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+
+import React, { useState, useRef } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { RoutePath } from '../types';
 
 export const EvaluationSuccess = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary/80 dark:bg-black/80 backdrop-blur-sm p-4">
@@ -47,6 +49,7 @@ export const EvaluationSuccess = () => {
                     Dashboard
                 </button>
                 <button 
+                    onClick={() => navigate(RoutePath.EVALUATIONS_EXPORT.replace(':id', id || '8392'))}
                     className="flex-1 py-3 bg-secondary dark:bg-primary text-white font-mono text-xs uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-primary-dark transition shadow-sm"
                 >
                     Gerar Laudo PDF
@@ -125,7 +128,35 @@ export const ExportEvaluation = () => {
     );
 }
 
+interface Annotation {
+    id: number;
+    x: number;
+    y: number;
+    type: 'point' | 'text';
+}
+
 export const ImageAnnotation = () => {
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    const [tool, setTool] = useState<'pointer' | 'marker'>('marker');
+    const imageRef = useRef<HTMLDivElement>(null);
+
+    const handleImageClick = (e: React.MouseEvent) => {
+        if (tool === 'marker' && imageRef.current) {
+            const rect = imageRef.current.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            
+            setAnnotations([...annotations, {
+                id: Date.now(),
+                x, y, type: 'point'
+            }]);
+        }
+    };
+
+    const removeAnnotation = (id: number) => {
+        setAnnotations(annotations.filter(a => a.id !== id));
+    };
+
     return (
         <div className="fixed inset-0 bg-background dark:bg-slate-950 z-50 flex flex-col font-sans">
             {/* Annotation Header */}
@@ -140,11 +171,10 @@ export const ImageAnnotation = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex bg-slate-800 rounded-sm p-1 mr-4">
-                        <button className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-sm transition-colors"><span className="material-symbols-outlined text-lg">undo</span></button>
-                        <button className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-sm transition-colors"><span className="material-symbols-outlined text-lg">redo</span></button>
-                    </div>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 font-mono text-xs uppercase tracking-wide transition-colors">
+                    <button 
+                        onClick={() => setAnnotations([])}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 font-mono text-xs uppercase tracking-wide transition-colors"
+                    >
                         <span className="material-symbols-outlined text-base">delete</span> Limpar
                     </button>
                     <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary-dark font-mono text-xs uppercase tracking-wide transition-colors shadow-glow">
@@ -159,23 +189,27 @@ export const ImageAnnotation = () => {
             <div className="flex flex-1 overflow-hidden">
                 {/* Toolbar */}
                 <aside className="w-16 border-r border-slate-800 flex flex-col items-center py-4 gap-3 bg-secondary text-slate-400">
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm text-primary bg-slate-800 border border-primary/50 shadow-glow"><span className="material-symbols-outlined">arrow_selector_tool</span></button>
+                    <button 
+                        onClick={() => setTool('pointer')}
+                        className={`w-10 h-10 flex items-center justify-center rounded-sm ${tool === 'pointer' ? 'text-primary bg-slate-800 border border-primary/50 shadow-glow' : 'hover:bg-slate-800 hover:text-white'}`}
+                    >
+                        <span className="material-symbols-outlined">arrow_selector_tool</span>
+                    </button>
                     <div className="w-8 h-px bg-slate-800 my-1"></div>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm hover:bg-slate-800 hover:text-white transition-colors"><span className="material-symbols-outlined">horizontal_rule</span></button>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm hover:bg-slate-800 hover:text-white transition-colors"><span className="material-symbols-outlined">radio_button_unchecked</span></button>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm hover:bg-slate-800 hover:text-white transition-colors"><span className="material-symbols-outlined">arrow_outward</span></button>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm hover:bg-slate-800 hover:text-white transition-colors"><span className="material-symbols-outlined">straighten</span></button>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm hover:bg-slate-800 hover:text-white transition-colors"><span className="material-symbols-outlined">title</span></button>
-                    <div className="w-8 h-px bg-slate-800 my-1"></div>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-sm hover:bg-rose-900/30 hover:text-rose-500 transition-colors"><span className="material-symbols-outlined">ink_eraser</span></button>
+                    <button 
+                        onClick={() => setTool('marker')}
+                        className={`w-10 h-10 flex items-center justify-center rounded-sm ${tool === 'marker' ? 'text-primary bg-slate-800 border border-primary/50 shadow-glow' : 'hover:bg-slate-800 hover:text-white'}`}
+                    >
+                        <span className="material-symbols-outlined">radio_button_unchecked</span>
+                    </button>
                 </aside>
 
                 {/* Canvas Area */}
                 <main className="flex-1 bg-slate-900 relative flex flex-col overflow-hidden">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-5 pointer-events-none"></div>
                     
-                    <div className="flex-1 flex items-center justify-center p-8 relative">
-                        <div className="relative shadow-2xl border border-white/5">
+                    <div className="flex-1 flex items-center justify-center p-8 relative cursor-crosshair" onClick={handleImageClick}>
+                        <div ref={imageRef} className="relative shadow-2xl border border-white/5 inline-block">
                             {/* Crosshair overlay */}
                             <div className="absolute top-0 left-1/2 h-full w-px bg-primary/20 pointer-events-none"></div>
                             <div className="absolute left-0 top-1/2 w-full h-px bg-primary/20 pointer-events-none"></div>
@@ -183,8 +217,20 @@ export const ImageAnnotation = () => {
                             <img 
                                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcBg2f-0Jd81qvftlnSjRo5Z8yWbaq2h-pKNCVVTN4yTLDehB8omAjObDsK2EOhMQ9P7FpHjVRCLn7flx0ImGWlvDX7zo65T_8m4ul70joPe6m-pKCcfzCziXMQEClYEZyaK3QuQzUOTX9mZIsC6jdwLNWuNvl8Foe8uJbXdca4X3dd64pYWRaVn0_2wgOXKn436vrXFp5_ysfXlFypQfcSRFdTEF0R2n03B4kj8iSRY6ucVzTcYioFPm1rb9i6xbyJO62nvzhCUcm" 
                                 alt="Face Anatomy"
-                                className="max-h-[75vh] object-contain grayscale brightness-75 contrast-125"
+                                className="max-h-[75vh] object-contain grayscale brightness-75 contrast-125 pointer-events-none select-none"
                             />
+
+                            {/* Render Annotations */}
+                            {annotations.map(ann => (
+                                <div 
+                                    key={ann.id}
+                                    style={{ left: `${ann.x}%`, top: `${ann.y}%` }}
+                                    className="absolute w-6 h-6 -ml-3 -mt-3 border-2 border-primary rounded-full bg-primary/20 flex items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform shadow-glow"
+                                    onClick={(e) => { e.stopPropagation(); removeAnnotation(ann.id); }}
+                                >
+                                    <div className="w-1 h-1 bg-white rounded-full"></div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -193,14 +239,6 @@ export const ImageAnnotation = () => {
                         <div className="flex flex-col items-center gap-2 cursor-pointer group">
                             <div className="w-20 h-20 bg-cover bg-center ring-1 ring-primary shadow-glow opacity-100" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDSUE1RRwzEClhcpTTYZcc_E9LkSpJfJheE2nyJWpim-0VxDKf6Ul1v_MabZXzkY_zMA6DlYdvaCpwGyFJC6Z2SIB3ZtVX-C2X4NiP5GSBLk7Qo5jovKsOsoxtk2S4lBsMF3FIjXptKSgWJ_hL2aZwJmt3_OVq8ZFpE2BmXIok9akil6ppe9Kwfqq_8pv3rsxBWj9eKh-igZPqbIl8zk6MGsn2dHOEbxfZeyMblRrojP6bzaHiDy0dB9Fnme2fsS9NrmJJwS6tDyaoH")'}}></div>
                             <span className="font-mono text-[10px] uppercase text-primary tracking-wider">Frontal</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-2 cursor-pointer group opacity-50 hover:opacity-100 transition-opacity">
-                            <div className="w-20 h-20 bg-cover bg-center border border-slate-700 group-hover:border-slate-500" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCXbF2hUlkrRQ9A4VHcVIdn6qgKhepwrovkNeMWPl0_EFfvyzMDbmfUkpNwqlAmjdTPf3PUPbZHXDzSZ2UK2LJB-0zsFL2VyAnZbJubw2GOKXYUZ7vlM8Aaa-kZBrRyVvAplsyia7TPmX2-4ctTmrJ37cLR4VL0-OtLPkG6hPWFKofSyinrrinsXMvgl_SGJsb7xxUfv1J8fMHv_hw7EIGi0AAz2h3CKmRhpdDWnkucgyyeQoDrD5We6MjfK90VCtFcTgYzvS1-TgMx")'}}></div>
-                            <span className="font-mono text-[10px] uppercase text-slate-400 tracking-wider">Perfil Esq</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-2 cursor-pointer group opacity-50 hover:opacity-100 transition-opacity">
-                            <div className="w-20 h-20 bg-cover bg-center border border-slate-700 group-hover:border-slate-500" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDB-4LwPdrRsKfheWB0jlLhW08l0-5yvXcekcjSs1tl-gM8oZOWBmURh8T3Vx8xePJj3yD7rHYibXrUhztroFL5wLpMxhGoXDYvWWGwH41xAIBZF8uXf0nqHVJdgdfZvI72HqS4s0QTU2IkjNSUBurfR3hcUmYrAAAwVJCqzohximUcANhtK6G9Kz8q3W4dyi_whtE2zAcY-qm_u2U-lJO4UQUtalccTFMPjlt9p7X89BIpUsmBVv4sA6Cc-iGQ0_YvTJE-urGRbojx")'}}></div>
-                            <span className="font-mono text-[10px] uppercase text-slate-400 tracking-wider">3/4 Dir</span>
                         </div>
                     </div>
                 </main>
@@ -212,26 +250,17 @@ export const ImageAnnotation = () => {
                         <button className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><span className="material-symbols-outlined">add</span></button>
                     </div>
                     <div className="p-3 space-y-1">
-                        <div className="flex items-center justify-between p-3 bg-slate-800/50 border border-primary/30 rounded-sm">
-                            <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-slate-500 text-sm cursor-grab">drag_indicator</span>
-                                <span className="font-sans text-sm font-medium text-white">Marcações</span>
+                        {annotations.map((ann, index) => (
+                            <div key={ann.id} className="flex items-center justify-between p-3 bg-slate-800/50 border border-primary/30 rounded-sm">
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-slate-500 text-sm">drag_indicator</span>
+                                    <span className="font-sans text-sm font-medium text-white">Marcador {index + 1}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => removeAnnotation(ann.id)} className="text-slate-600 hover:text-rose-500"><span className="material-symbols-outlined text-base">delete</span></button>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <button className="text-primary hover:text-primary-light"><span className="material-symbols-outlined text-base">visibility</span></button>
-                                <button className="text-slate-600 hover:text-rose-500"><span className="material-symbols-outlined text-base">delete</span></button>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between p-3 hover:bg-slate-800/30 border border-transparent hover:border-slate-700 rounded-sm transition-colors">
-                            <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-slate-600 text-sm cursor-grab">drag_indicator</span>
-                                <span className="font-sans text-sm font-medium text-slate-400">Grid Milimétrico</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button className="text-slate-600 hover:text-white"><span className="material-symbols-outlined text-base">visibility_off</span></button>
-                                <button className="text-slate-600 hover:text-rose-500"><span className="material-symbols-outlined text-base">delete</span></button>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </aside>
             </div>

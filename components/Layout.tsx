@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { RoutePath } from '../types';
 
 const SidebarItem = ({
@@ -30,8 +30,12 @@ const SidebarItem = ({
 
 export const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const path = location.pathname;
   const [isDark, setIsDark] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isDark) {
@@ -41,9 +45,27 @@ export const Layout = () => {
     }
   }, [isDark]);
 
+  // Close notifications when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const isActive = (route: string) => {
     if (route === RoutePath.DASHBOARD) return path === RoutePath.DASHBOARD;
     return path.startsWith(route);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`${RoutePath.PATIENTS}?search=${encodeURIComponent(searchTerm)}`);
+    }
   };
 
   return (
@@ -52,7 +74,7 @@ export const Layout = () => {
       <aside className="flex w-64 flex-col border-r border-border dark:border-slate-800 bg-surface dark:bg-slate-900 z-20 shadow-atlas">
         {/* Doctor Profile - Editorial Style */}
         <div className="p-6 border-b border-border dark:border-slate-800">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => navigate(RoutePath.SETTINGS)}>
             <div className="relative">
                 <div
                     className="bg-center bg-no-repeat aspect-square bg-cover size-12 grayscale contrast-125"
@@ -146,7 +168,7 @@ export const Layout = () => {
           </div>
 
           <div className="flex flex-1 max-w-md mx-12">
-            <div className="relative w-full group">
+            <form onSubmit={handleSearch} className="relative w-full group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="material-symbols-outlined text-slate-400 text-lg group-focus-within:text-primary transition-colors">
                   search
@@ -154,10 +176,12 @@ export const Layout = () => {
               </div>
               <input
                 type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2 border-b border-slate-300 dark:border-slate-700 bg-transparent placeholder-slate-400 focus:outline-none focus:border-primary text-sm font-mono transition-colors dark:text-slate-200"
                 placeholder="BUSCAR PACIENTE OU ID..."
               />
-            </div>
+            </form>
           </div>
 
           <div className="flex items-center gap-6">
@@ -176,13 +200,49 @@ export const Layout = () => {
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                 <span className="font-mono text-[10px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Online</span>
             </div>
-            <button className="relative text-slate-400 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-0 right-0 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-critical opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-critical"></span>
-              </span>
-            </button>
+            
+            {/* Notification Bell */}
+            <div className="relative" ref={notificationRef}>
+              <button 
+                className="relative text-slate-400 hover:text-primary transition-colors"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <span className="material-symbols-outlined">notifications</span>
+                <span className="absolute top-0 right-0 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-critical opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-critical"></span>
+                </span>
+              </button>
+
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-sm z-50 animate-fade-in">
+                  <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                    <span className="font-mono text-xs uppercase tracking-wide text-slate-500">Notificações</span>
+                    <span className="text-[10px] text-primary cursor-pointer hover:underline">Marcar lidas</span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {[
+                      { type: 'alert', title: 'Paciente Em Risco', desc: 'Carlos Souza apresentou alteração nos sinais vitais.', time: '10m atrás' },
+                      { type: 'success', title: 'Avaliação Concluída', desc: 'Laudo de Maria Almeida finalizado com sucesso.', time: '1h atrás' },
+                      { type: 'info', title: 'Backup do Sistema', desc: 'Sincronização automática realizada.', time: '2h atrás' }
+                    ].map((notif, i) => (
+                      <div key={i} className="p-3 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer flex gap-3">
+                        <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${notif.type === 'alert' ? 'bg-critical' : notif.type === 'success' ? 'bg-success' : 'bg-primary'}`}></div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{notif.title}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{notif.desc}</p>
+                          <p className="text-[10px] font-mono text-slate-400 mt-1">{notif.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 text-center border-t border-slate-100 dark:border-slate-800">
+                    <button className="text-xs text-primary hover:text-primary-dark font-medium">Ver todas</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

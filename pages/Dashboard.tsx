@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -13,25 +13,13 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import { useClinic } from '../context/ClinicContext';
+import { useNavigate, Link } from 'react-router-dom';
+import { RoutePath } from '../types';
 
-const dataLine = [
-  { name: 'Sem 1', score: 45 },
-  { name: 'Sem 2', score: 52 },
-  { name: 'Sem 3', score: 48 },
-  { name: 'Sem 4', score: 70 },
-  { name: 'Sem 5', score: 65 },
-  { name: 'Sem 6', score: 88 },
-];
+const COLORS = ['#06b6d4', '#10b981', '#f59e0b', '#e11d48', '#6366f1'];
 
-const dataPie = [
-  { name: 'Cardiologia', value: 60 },
-  { name: 'Ortopedia', value: 30 },
-  { name: 'Neurologia', value: 10 },
-];
-
-const COLORS = ['#06b6d4', '#10b981', '#f59e0b']; // Cyan, Emerald, Amber
-
-// Custom Tooltip for Recharts to support Tailwind classes and Dark Mode
+// Custom Tooltip for Recharts
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -46,7 +34,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const StatCard = ({ label, value, trend, trendUp, unit }: { label: string; value: string; trend: string; trendUp: boolean, unit?: string }) => (
+const StatCard = ({ label, value, trend, trendUp, unit }: { label: string; value: string | number; trend: string; trendUp: boolean, unit?: string }) => (
   <div className="relative bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-atlas group hover:border-primary/30 dark:hover:border-primary/30 transition-colors overflow-hidden">
     {/* Corner Accents */}
     <div className="absolute top-0 left-0 w-2 h-2 border-l border-t border-slate-200 dark:border-slate-700 group-hover:border-primary/50 transition-colors"></div>
@@ -80,6 +68,54 @@ const StatCard = ({ label, value, trend, trendUp, unit }: { label: string; value
 );
 
 export const Dashboard = () => {
+  const { patients, evaluations } = useClinic();
+  const navigate = useNavigate();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Live Clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Stats Calculations
+  const totalPatients = patients.length;
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const evaluationsToday = evaluations.filter(e => e.date === todayStr).length;
+  
+  const scores = evaluations.map(e => e.score || 0).filter(s => s > 0);
+  const avgScore = scores.length > 0 
+    ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) 
+    : '0.0';
+
+  // Mock surgeries count based on patient count for dynamism
+  const scheduledSurgeries = Math.floor(totalPatients * 0.15); 
+
+  // Chart Data Preparation
+  // 1. Area Chart: Group scores by date/sequence to show trend
+  const dataLine = evaluations
+    .slice(-6) // Last 6 evaluations
+    .reverse()
+    .map((ev, i) => ({
+        name: `Av ${i+1}`,
+        score: ev.score || 0,
+        date: ev.date
+    }));
+
+  // 2. Pie Chart: Group by Type
+  const typeCount = evaluations.reduce((acc, curr) => {
+    acc[curr.type] = (acc[curr.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const dataPie = Object.keys(typeCount).map(type => ({
+    name: type,
+    value: typeCount[type]
+  }));
+
+  const totalProcedures = dataPie.reduce((acc, curr) => acc + curr.value, 0);
+
   return (
     <div className="flex flex-col gap-8">
       {/* Dashboard Header */}
@@ -89,14 +125,17 @@ export const Dashboard = () => {
             Visão Geral
           </h1>
           <p className="font-mono text-xs text-slate-500 mt-2 uppercase tracking-wider">
-            Sistema: <span className="text-emerald-600 dark:text-emerald-400">Operacional</span> &bull; Última Sincronização: 10:42 AM
+            Sistema: <span className="text-emerald-600 dark:text-emerald-400">Operacional</span> &bull; Última Sincronização: {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
           </p>
         </div>
         <div className="flex gap-2">
           <button className="px-4 py-2 bg-white dark:bg-slate-900 border border-border dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors">
             Últimos 30 dias
           </button>
-          <button className="px-4 py-2 bg-secondary dark:bg-slate-800 text-white border border-secondary dark:border-slate-700 font-mono text-xs uppercase tracking-wide hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors shadow-sm flex items-center gap-2">
+          <button 
+            onClick={() => navigate(RoutePath.REPORTS)}
+            className="px-4 py-2 bg-secondary dark:bg-slate-800 text-white border border-secondary dark:border-slate-700 font-mono text-xs uppercase tracking-wide hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors shadow-sm flex items-center gap-2"
+          >
             <span className="material-symbols-outlined text-sm">download</span>
             Relatório
           </button>
@@ -105,10 +144,10 @@ export const Dashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Pacientes Totais" value="1,284" trend="2.5%" trendUp={true} />
-        <StatCard label="Avaliações (Hoje)" value="32" trend="1.2%" trendUp={false} />
-        <StatCard label="Cirurgias Agendadas" value="15" trend="5.0%" trendUp={true} />
-        <StatCard label="Score Médio" value="8.7" unit="/ 10" trend="0.3%" trendUp={true} />
+        <StatCard label="Pacientes Totais" value={totalPatients} trend="2.5%" trendUp={true} />
+        <StatCard label="Avaliações (Hoje)" value={evaluationsToday} trend="1.2%" trendUp={false} />
+        <StatCard label="Cirurgias Agendadas" value={scheduledSurgeries} trend="5.0%" trendUp={true} />
+        <StatCard label="Score Médio" value={avgScore} unit="/ 100" trend="0.3%" trendUp={true} />
       </div>
 
       {/* Charts Section */}
@@ -119,7 +158,7 @@ export const Dashboard = () => {
             <h3 className="font-serif text-xl text-slate-900 dark:text-white">
               Tendência Clínica
             </h3>
-            <span className="font-mono text-xs text-slate-400 uppercase">Evolução do Score (6 Semanas)</span>
+            <span className="font-mono text-xs text-slate-400 uppercase">Evolução do Score (Recente)</span>
           </div>
           
           <div className="h-80 w-full">
@@ -180,7 +219,7 @@ export const Dashboard = () => {
                   cy="50%"
                   innerRadius={60}
                   outerRadius={70}
-                  paddingAngle={8}
+                  paddingAngle={5}
                   dataKey="value"
                   stroke="none"
                 >
@@ -196,7 +235,7 @@ export const Dashboard = () => {
             </ResponsiveContainer>
             {/* Center text overlay */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="font-serif text-4xl font-bold text-slate-900 dark:text-white">48</span>
+                <span className="font-serif text-4xl font-bold text-slate-900 dark:text-white">{totalProcedures}</span>
                 <span className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Total</span>
             </div>
           </div>
@@ -207,12 +246,12 @@ export const Dashboard = () => {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-2 h-2 rounded-sm"
-                    style={{ backgroundColor: COLORS[index] }}
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   ></div>
                   <span className="text-slate-600 dark:text-slate-300 font-sans">{item.name}</span>
                 </div>
                 <span className="font-mono text-slate-900 dark:text-white font-medium">
-                  {item.value}%
+                  {Math.round((item.value / totalProcedures) * 100)}%
                 </span>
               </div>
             ))}
@@ -224,9 +263,9 @@ export const Dashboard = () => {
       <div className="bg-white dark:bg-slate-900 border border-border dark:border-slate-800 shadow-atlas overflow-hidden">
         <div className="px-6 py-5 border-b border-border dark:border-slate-800 flex justify-between items-center">
           <h3 className="font-serif text-xl text-slate-900 dark:text-white">Pacientes Recentes</h3>
-          <button className="text-primary hover:text-primary-dark font-mono text-xs uppercase tracking-wider flex items-center gap-1">
+          <Link to={RoutePath.PATIENTS} className="text-primary hover:text-primary-dark font-mono text-xs uppercase tracking-wider flex items-center gap-1">
             Ver Todos <span className="material-symbols-outlined text-sm">arrow_forward</span>
-          </button>
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -234,31 +273,31 @@ export const Dashboard = () => {
               <tr>
                 <th className="px-6 py-4 font-medium">Nome do Paciente</th>
                 <th className="px-6 py-4 font-medium">Última Interação</th>
-                <th className="px-6 py-4 font-medium">Procedimento</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border dark:divide-slate-800">
-              {[
-                { name: 'Ana Silva', date: '2023-10-26', proc: 'Cardiologia', status: 'Concluído', color: 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' },
-                { name: 'Bruno Costa', date: '2023-10-26', proc: 'Ortopedia', status: 'Pendente', color: 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400' },
-                { name: 'Carla Dias', date: '2023-10-25', proc: 'Neurologia', status: 'Em Risco', color: 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400' },
-              ].map((patient, idx) => (
+              {patients.slice(0, 5).map((patient, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
                   <td className="px-6 py-4">
                     <span className="font-medium text-slate-900 dark:text-white block">{patient.name}</span>
-                    <span className="font-mono text-[10px] text-slate-400">ID: 8329-{idx}</span>
+                    <span className="font-mono text-[10px] text-slate-400">ID: {patient.id}</span>
                   </td>
-                  <td className="px-6 py-4 font-mono text-slate-500 dark:text-slate-400 text-xs">{patient.date}</td>
-                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{patient.proc}</td>
+                  <td className="px-6 py-4 font-mono text-slate-500 dark:text-slate-400 text-xs">{patient.lastVisit}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-sm border text-[10px] font-mono uppercase tracking-wide ${patient.color}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-sm border text-[10px] font-mono uppercase tracking-wide 
+                        ${patient.status === 'Active' ? 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' : 
+                          patient.status === 'Alert' ? 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400' :
+                          'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400'}`}>
                       {patient.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-slate-400 hover:text-primary transition-colors">
+                    <button 
+                        onClick={() => navigate(RoutePath.PATIENTS_DETAILS.replace(':id', patient.id))}
+                        className="text-slate-400 hover:text-primary transition-colors"
+                    >
                         <span className="material-symbols-outlined text-lg">chevron_right</span>
                     </button>
                   </td>
