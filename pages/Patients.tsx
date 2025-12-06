@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { RoutePath } from '../types';
 import { useClinic } from '../context/ClinicContext';
+import { uploadPatientPhoto } from '../lib/storage';
 
 // --- Utility Functions for Masking & Validation ---
 
@@ -35,18 +36,38 @@ export const PatientsList = () => {
   const initialSearch = searchParams.get('search') || '';
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showDateMenu, setShowDateMenu] = useState(false);
   const itemsPerPage = 8;
 
   useEffect(() => {
     setSearchTerm(initialSearch);
-    setCurrentPage(1); // Reset to first page on new search
+    setCurrentPage(1);
   }, [initialSearch]);
 
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.id.includes(searchTerm) ||
-    p.cpf.includes(searchTerm)
-  );
+  const filteredPatients = patients.filter(p => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id.includes(searchTerm) ||
+      p.cpf.includes(searchTerm);
+
+    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+
+    let matchesDate = true;
+    if (dateFilter !== 'all' && p.lastVisit) {
+      const visitDate = new Date(p.lastVisit.split('/').reverse().join('-'));
+      const today = new Date();
+      const diffDays = Math.floor((today.getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (dateFilter === 'last7days') matchesDate = diffDays <= 7;
+      else if (dateFilter === 'last30days') matchesDate = diffDays <= 30;
+      else if (dateFilter === 'last90days') matchesDate = diffDays <= 90;
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
+  });
 
   const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
   const paginatedPatients = filteredPatients.slice(
@@ -107,14 +128,65 @@ export const PatientsList = () => {
           />
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase font-mono tracking-wide">
-            <span className="material-symbols-outlined text-lg">filter_list</span>
-            Status
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase font-mono tracking-wide">
-            <span className="material-symbols-outlined text-lg">calendar_month</span>
-            Data
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              className={`flex items-center gap-2 px-4 py-2 border ${statusFilter !== 'all' ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'} text-xs uppercase font-mono tracking-wide transition-colors`}
+            >
+              <span className="material-symbols-outlined text-lg">filter_list</span>
+              Status
+              {statusFilter !== 'all' && <span className="w-2 h-2 bg-primary rounded-full"></span>}
+            </button>
+            {showStatusMenu && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg z-10">
+                {['all', 'Active', 'Pending', 'Alert', 'Inactive'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setStatusFilter(status);
+                      setShowStatusMenu(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-xs font-mono uppercase tracking-wide hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${statusFilter === status ? 'bg-primary/10 text-primary' : 'text-slate-600 dark:text-slate-300'}`}
+                  >
+                    {status === 'all' ? 'Todos' : status === 'Active' ? 'Ativo' : status === 'Pending' ? 'Pendente' : status === 'Alert' ? 'Alerta' : 'Inativo'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowDateMenu(!showDateMenu)}
+              className={`flex items-center gap-2 px-4 py-2 border ${dateFilter !== 'all' ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'} text-xs uppercase font-mono tracking-wide transition-colors`}
+            >
+              <span className="material-symbols-outlined text-lg">calendar_month</span>
+              Data
+              {dateFilter !== 'all' && <span className="w-2 h-2 bg-primary rounded-full"></span>}
+            </button>
+            {showDateMenu && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg z-10">
+                {[
+                  { value: 'all', label: 'Todas' },
+                  { value: 'last7days', label: 'Últimos 7 dias' },
+                  { value: 'last30days', label: 'Últimos 30 dias' },
+                  { value: 'last90days', label: 'Últimos 90 dias' }
+                ].map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      setDateFilter(option.value);
+                      setShowDateMenu(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-xs font-mono uppercase tracking-wide hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${dateFilter === option.value ? 'bg-primary/10 text-primary' : 'text-slate-600 dark:text-slate-300'}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -213,8 +285,11 @@ export const PatientForm = () => {
       address: '',
       history: ''
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -223,16 +298,53 @@ export const PatientForm = () => {
     if (!formData.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória.";
     if (formData.email && !validateEmail(formData.email)) newErrors.email = "E-mail inválido.";
     if (!formData.gender) newErrors.gender = "Selecione um gênero.";
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5242880) {
+        alert('Arquivo muito grande. Tamanho máximo: 5MB');
+        return;
+      }
+
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        alert('Formato inválido. Use JPG, PNG ou WEBP');
+        return;
+      }
+
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async () => {
       if (!validate()) return;
 
+      setUploading(true);
+
+      const patientId = Math.floor(Math.random() * 1000000).toString();
+      let photoUrl = undefined;
+
+      if (photoFile) {
+        const result = await uploadPatientPhoto(photoFile, patientId);
+        if (result.success) {
+          photoUrl = result.url;
+        } else {
+          alert('Erro ao fazer upload da foto: ' + result.error);
+        }
+      }
+
       addPatient({
-          id: Math.floor(Math.random() * 1000000).toString(),
+          id: patientId,
           name: formData.name,
           cpf: formData.cpf,
           email: formData.email,
@@ -241,9 +353,11 @@ export const PatientForm = () => {
           gender: formData.gender,
           address: formData.address,
           status: 'Active',
-          lastVisit: new Date().toLocaleDateString('pt-BR')
+          lastVisit: new Date().toLocaleDateString('pt-BR'),
+          photoUrl
       });
 
+      setUploading(false);
       navigate(RoutePath.PATIENTS);
   };
 
@@ -282,16 +396,40 @@ export const PatientForm = () => {
             {/* Photo Upload Block */}
             <div className="flex items-start gap-6 mb-8 pb-8 border-b border-slate-100 dark:border-slate-800">
                 <div className="relative group">
-                    <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 transition-all group-hover:border-primary group-hover:text-primary group-hover:bg-primary/5 cursor-pointer">
-                        <span className="material-symbols-outlined text-2xl mb-1">add_a_photo</span>
-                        <span className="font-mono text-[10px] uppercase tracking-wide">Foto</span>
-                    </div>
-                    <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" />
+                    {photoPreview ? (
+                        <div className="w-24 h-24 relative">
+                            <img
+                                src={photoPreview}
+                                alt="Preview"
+                                className="w-full h-full object-cover border-2 border-primary"
+                            />
+                            <button
+                                onClick={() => {
+                                    setPhotoFile(null);
+                                    setPhotoPreview(null);
+                                }}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-colors"
+                            >
+                                <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 transition-all group-hover:border-primary group-hover:text-primary group-hover:bg-primary/5 cursor-pointer">
+                            <span className="material-symbols-outlined text-2xl mb-1">add_a_photo</span>
+                            <span className="font-mono text-[10px] uppercase tracking-wide">Foto</span>
+                        </div>
+                    )}
+                    <input
+                        type="file"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handlePhotoChange}
+                    />
                 </div>
                 <div className="flex flex-col pt-1">
                     <span className="font-mono text-xs uppercase tracking-wider text-slate-500 mb-1">Imagem de Perfil</span>
                     <p className="text-sm text-slate-600 dark:text-slate-400 font-light max-w-sm leading-relaxed">
-                        Carregue uma foto recente para identificação. Formatos aceitos: JPG, PNG (Max 5MB).
+                        Carregue uma foto recente para identificação. Formatos aceitos: JPG, PNG, WEBP (Max 5MB).
                     </p>
                 </div>
             </div>
@@ -414,9 +552,22 @@ export const PatientForm = () => {
 
       <div className="flex justify-end pb-10 gap-4">
         <Link to={RoutePath.PATIENTS} className="px-6 py-3 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</Link>
-        <button onClick={handleSubmit} className="bg-secondary dark:bg-primary text-white px-8 py-3 font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-primary-dark transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">save</span>
-            Salvar Registro
+        <button
+          onClick={handleSubmit}
+          disabled={uploading}
+          className="bg-secondary dark:bg-primary text-white px-8 py-3 font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-primary-dark transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+            {uploading ? (
+              <>
+                <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                Salvando...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-sm">save</span>
+                Salvar Registro
+              </>
+            )}
         </button>
       </div>
     </div>

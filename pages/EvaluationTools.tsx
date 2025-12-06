@@ -2,6 +2,8 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { RoutePath } from '../types';
+import { useClinic } from '../context/ClinicContext';
+import { exportEvaluationToPDF } from '../lib/pdfExport';
 
 export const EvaluationSuccess = () => {
   const navigate = useNavigate();
@@ -62,13 +64,34 @@ export const EvaluationSuccess = () => {
 };
 
 export const ExportEvaluation = () => {
+    const { id } = useParams();
+    const { getEvaluation, getPatient } = useClinic();
+    const evaluation = getEvaluation(id || '');
+    const patient = evaluation ? getPatient(evaluation.patientId) : null;
+
+    const handleDownloadPDF = () => {
+        if (evaluation && patient) {
+            exportEvaluationToPDF(evaluation, patient);
+        } else {
+            alert('Avaliação ou paciente não encontrado');
+        }
+    };
+
+    if (!evaluation || !patient) {
+        return (
+            <div className="p-8 text-center">
+                <p className="font-mono text-slate-500">Avaliação não encontrada.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-8rem)]">
             {/* Main Preview Area */}
             <div className="flex-1 flex flex-col gap-6 min-h-0">
                 <header className="border-b border-border dark:border-slate-800 pb-4">
                     <h1 className="font-serif text-3xl text-slate-900 dark:text-white italic">Exportação de Documento</h1>
-                    <p className="font-mono text-xs text-slate-500 uppercase tracking-wider mt-1">Paciente: Ana Beatriz Costa &bull; ID: 9328</p>
+                    <p className="font-mono text-xs text-slate-500 uppercase tracking-wider mt-1">Paciente: {patient.name} &bull; ID: {evaluation.id}</p>
                 </header>
 
                 <div className="flex-1 bg-slate-200/50 dark:bg-slate-900 border border-border dark:border-slate-800 flex items-center justify-center p-8 overflow-auto relative">
@@ -112,7 +135,10 @@ export const ExportEvaluation = () => {
                     </div>
 
                     <div className="flex flex-col gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-                        <button className="flex items-center justify-center gap-2 w-full bg-primary text-white font-mono text-xs uppercase tracking-widest py-4 hover:bg-primary-dark shadow-sm transition-colors">
+                        <button
+                            onClick={handleDownloadPDF}
+                            className="flex items-center justify-center gap-2 w-full bg-primary text-white font-mono text-xs uppercase tracking-widest py-4 hover:bg-primary-dark shadow-sm transition-colors"
+                        >
                             <span className="material-symbols-outlined text-lg">download</span> Download PDF
                         </button>
                         <button className="flex items-center justify-center gap-2 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs uppercase tracking-widest py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
