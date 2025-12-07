@@ -12,12 +12,14 @@ import { Settings, Support } from './pages/SettingsSupport';
 import { RoutePath } from './types';
 import { ClinicProvider } from './context/ClinicContext';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './lib/toast';
 
 const App = () => {
   return (
-    <AuthProvider>
-      <ClinicProvider>
-        <Router>
+    <ToastProvider>
+      <AuthProvider>
+        <ClinicProvider>
+          <Router>
         <Routes>
           {/* Public Routes */}
           <Route path={RoutePath.LOGIN} element={<Login />} />
@@ -52,9 +54,10 @@ const App = () => {
             <Route path={RoutePath.SUPPORT} element={<Support />} />
           </Route>
         </Routes>
-      </Router>
-      </ClinicProvider>
-    </AuthProvider>
+        </Router>
+        </ClinicProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 };
 

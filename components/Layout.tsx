@@ -4,6 +4,7 @@ import { RoutePath } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { isDevMode, getDevProfile } from '../lib/devMode';
+import { syncManager } from '../lib/sync';
 
 const SidebarItem = ({
   to,
@@ -40,6 +41,7 @@ export const Layout = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; crm: string | null } | null>(null);
+  const [syncStatus, setSyncStatus] = useState({ connected: false, lastSync: null as Date | null });
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,6 +49,13 @@ export const Layout = () => {
       navigate(RoutePath.LOGIN);
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const unsubscribe = syncManager.onStatusChange((status) => {
+      setSyncStatus(status);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -253,9 +262,23 @@ export const Layout = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-full">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="font-mono text-[10px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Online</span>
+            <div className={`flex items-center gap-2 px-3 py-1 border rounded-full ${
+              syncStatus.connected
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30'
+                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
+            }`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  syncStatus.connected
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-amber-500 animate-pulse'
+                }`}></div>
+                <span className={`font-mono text-[10px] font-medium uppercase tracking-wider ${
+                  syncStatus.connected
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-amber-700 dark:text-amber-400'
+                }`}>
+                  {syncStatus.connected ? 'Online' : 'Offline'}
+                </span>
             </div>
             
             {/* Notification Bell */}
