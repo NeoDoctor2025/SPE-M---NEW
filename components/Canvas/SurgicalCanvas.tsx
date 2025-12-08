@@ -58,43 +58,7 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     img.src = imageUrl;
   }, [imageUrl]);
 
-  useEffect(() => {
-    loadLayers();
-    loadAnnotations();
-  }, [evaluationId]);
-
-  useEffect(() => {
-    if (imageViews.length > 0 && !imageViews.find((v) => v.angle === currentViewAngle)) {
-      setCurrentViewAngle(imageViews[0].angle);
-    }
-  }, [imageViews, currentViewAngle]);
-
-  useEffect(() => {
-    loadAnnotations();
-  }, [currentViewAngle]);
-
-  useEffect(() => {
-    renderCanvas();
-  }, [image, annotations, layers, zoom, panX, panY, currentViewAngle]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z' && !e.shiftKey) {
-          e.preventDefault();
-          handleUndo();
-        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
-          e.preventDefault();
-          handleRedo();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, canRedo]);
-
-  const loadLayers = async () => {
+  const loadLayers = useCallback(async () => {
     const loadedLayers = await canvasService.getLayers(evaluationId);
     setLayers(loadedLayers);
 
@@ -104,17 +68,17 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
         setLayers([defaultLayer]);
         setActiveLayerId(defaultLayer.id);
       }
-    } else {
+    } else if (!activeLayerId) {
       setActiveLayerId(loadedLayers[0].id);
     }
-  };
+  }, [evaluationId, activeLayerId]);
 
-  const loadAnnotations = async () => {
+  const loadAnnotations = useCallback(async () => {
     const loadedAnnotations = await canvasService.getAnnotations(evaluationId, currentViewAngle);
     setAnnotations(loadedAnnotations);
-  };
+  }, [evaluationId, currentViewAngle]);
 
-  const renderCanvas = () => {
+  const renderCanvas = useCallback(() => {
     if (!canvasRef.current || !image) return;
 
     const canvas = canvasRef.current;
@@ -142,9 +106,45 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     });
 
     ctx.restore();
-  };
+  }, [image, annotations, layers, zoom, panX, panY, currentViewAngle, drawAnnotation]);
 
-  const drawAnnotation = (ctx: CanvasRenderingContext2D, annotation: Annotation) => {
+  useEffect(() => {
+    loadLayers();
+    loadAnnotations();
+  }, [evaluationId]);
+
+  useEffect(() => {
+    if (imageViews.length > 0 && !imageViews.find((v) => v.angle === currentViewAngle)) {
+      setCurrentViewAngle(imageViews[0].angle);
+    }
+  }, [imageViews]);
+
+  useEffect(() => {
+    loadAnnotations();
+  }, [currentViewAngle]);
+
+  useEffect(() => {
+    renderCanvas();
+  }, [renderCanvas]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  const drawAnnotation = useCallback((ctx: CanvasRenderingContext2D, annotation: Annotation) => {
     ctx.save();
     ctx.strokeStyle = annotation.color;
     ctx.fillStyle = annotation.color;
@@ -228,7 +228,7 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     }
 
     ctx.restore();
-  };
+  }, []);
 
   const getCanvasPoint = (e: React.MouseEvent): Point => {
     if (!canvasRef.current) return { x: 0, y: 0 };
@@ -374,19 +374,19 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     setCurrentPath([]);
   };
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     const prevState = undo();
     if (prevState) {
       setAnnotations(prevState);
     }
-  };
+  }, [undo]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     const nextState = redo();
     if (nextState) {
       setAnnotations(nextState);
     }
-  };
+  }, [redo]);
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 4));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.25));
@@ -439,17 +439,20 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
   };
 
   const handleLayerDelete = async (layerId: string) => {
-    await canvasService.deleteLayer(layerId);
-    setLayers((prev) => prev.filter((l) => l.id !== layerId));
-    if (activeLayerId === layerId) {
-      setActiveLayerId(layers[0]?.id || null);
-    }
-
     const deletedAnnotations = annotations.filter((a) => a.layer_id === layerId);
     for (const annotation of deletedAnnotations) {
       await canvasService.deleteAnnotation(annotation.id);
     }
+
+    await canvasService.deleteLayer(layerId);
+
+    const remainingLayers = layers.filter((l) => l.id !== layerId);
+    setLayers(remainingLayers);
     setAnnotations((prev) => prev.filter((a) => a.layer_id !== layerId));
+
+    if (activeLayerId === layerId) {
+      setActiveLayerId(remainingLayers[0]?.id || null);
+    }
   };
 
   const handleLayerToggleVisibility = async (layerId: string) => {

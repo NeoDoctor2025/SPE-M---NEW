@@ -191,10 +191,29 @@ export const ExportEvaluation = () => {
 
 export const ImageAnnotation = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
+
+    if (!id) {
+        return (
+            <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
+                <div className="text-center">
+                    <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">error_outline</span>
+                    <h2 className="font-serif text-2xl text-slate-900 mb-2">Avaliação não encontrada</h2>
+                    <p className="text-slate-600 mb-6">ID de avaliação inválido</p>
+                    <button
+                        onClick={() => navigate(RoutePath.DASHBOARD)}
+                        className="px-6 py-2 bg-[#0066FF] text-white hover:bg-[#0052CC] font-mono text-xs uppercase tracking-wide transition-colors"
+                    >
+                        Voltar ao Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <SurgicalCanvas
-            evaluationId={id || ''}
+            evaluationId={id}
             imageUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuAcBg2f-0Jd81qvftlnSjRo5Z8yWbaq2h-pKNCVVTN4yTLDehB8omAjObDsK2EOhMQ9P7FpHjVRCLn7flx0ImGWlvDX7zo65T_8m4ul70joPe6m-pKCcfzCziXMQEClYEZyaK3QuQzUOTX9mZIsC6jdwLNWuNvl8Foe8uJbXdca4X3dd64pYWRaVn0_2wgOXKn436vrXFp5_ysfXlFypQfcSRFdTEF0R2n03B4kj8iSRY6ucVzTcYioFPm1rb9i6xbyJO62nvzhCUcm"
             imageViews={[
                 {
