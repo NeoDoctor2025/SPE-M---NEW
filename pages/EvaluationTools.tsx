@@ -6,6 +6,7 @@ import { useClinic } from '../context/ClinicContext';
 import { exportEvaluationToPDF } from '../lib/pdfExport';
 import { exportDetailedEvaluationToPDF } from '../lib/pdfExportDetailed';
 import { supabase } from '../lib/supabase';
+import { SurgicalCanvas } from '../components/Canvas/SurgicalCanvas';
 
 export const EvaluationSuccess = () => {
   const navigate = useNavigate();
@@ -188,142 +189,20 @@ export const ExportEvaluation = () => {
     );
 }
 
-interface Annotation {
-    id: number;
-    x: number;
-    y: number;
-    type: 'point' | 'text';
-}
-
 export const ImageAnnotation = () => {
-    const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [tool, setTool] = useState<'pointer' | 'marker'>('marker');
-    const imageRef = useRef<HTMLDivElement>(null);
-
-    const handleImageClick = (e: React.MouseEvent) => {
-        if (tool === 'marker' && imageRef.current) {
-            const rect = imageRef.current.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            
-            setAnnotations([...annotations, {
-                id: Date.now(),
-                x, y, type: 'point'
-            }]);
-        }
-    };
-
-    const removeAnnotation = (id: number) => {
-        setAnnotations(annotations.filter(a => a.id !== id));
-    };
+    const { id } = useParams();
 
     return (
-        <div className="fixed inset-0 bg-background dark:bg-slate-950 z-50 flex flex-col font-sans">
-            {/* Annotation Header */}
-            <header className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-secondary text-white shrink-0 shadow-lg">
-                <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 border border-primary/50 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-xl">health_and_safety</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <h2 className="font-serif text-lg leading-none">Canvas Cirúrgico</h2>
-                        <span className="font-mono text-[10px] text-slate-400 uppercase tracking-widest">Modo de Alta Precisão</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => setAnnotations([])}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 font-mono text-xs uppercase tracking-wide transition-colors"
-                    >
-                        <span className="material-symbols-outlined text-base">delete</span> Limpar
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary-dark font-mono text-xs uppercase tracking-wide transition-colors shadow-glow">
-                        <span className="material-symbols-outlined text-base">save</span> Salvar
-                    </button>
-                    <Link to={RoutePath.DASHBOARD} className="ml-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded-sm transition-colors">
-                        <span className="material-symbols-outlined">close</span>
-                    </Link>
-                </div>
-            </header>
-
-            <div className="flex flex-1 overflow-hidden">
-                {/* Toolbar */}
-                <aside className="w-16 border-r border-slate-800 flex flex-col items-center py-4 gap-3 bg-secondary text-slate-400">
-                    <button 
-                        onClick={() => setTool('pointer')}
-                        className={`w-10 h-10 flex items-center justify-center rounded-sm ${tool === 'pointer' ? 'text-primary bg-slate-800 border border-primary/50 shadow-glow' : 'hover:bg-slate-800 hover:text-white'}`}
-                    >
-                        <span className="material-symbols-outlined">arrow_selector_tool</span>
-                    </button>
-                    <div className="w-8 h-px bg-slate-800 my-1"></div>
-                    <button 
-                        onClick={() => setTool('marker')}
-                        className={`w-10 h-10 flex items-center justify-center rounded-sm ${tool === 'marker' ? 'text-primary bg-slate-800 border border-primary/50 shadow-glow' : 'hover:bg-slate-800 hover:text-white'}`}
-                    >
-                        <span className="material-symbols-outlined">radio_button_unchecked</span>
-                    </button>
-                </aside>
-
-                {/* Canvas Area */}
-                <main className="flex-1 bg-slate-900 relative flex flex-col overflow-hidden">
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-5 pointer-events-none"></div>
-                    
-                    <div className="flex-1 flex items-center justify-center p-8 relative cursor-crosshair" onClick={handleImageClick}>
-                        <div ref={imageRef} className="relative shadow-2xl border border-white/5 inline-block">
-                            {/* Crosshair overlay */}
-                            <div className="absolute top-0 left-1/2 h-full w-px bg-primary/20 pointer-events-none"></div>
-                            <div className="absolute left-0 top-1/2 w-full h-px bg-primary/20 pointer-events-none"></div>
-                            
-                            <img 
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcBg2f-0Jd81qvftlnSjRo5Z8yWbaq2h-pKNCVVTN4yTLDehB8omAjObDsK2EOhMQ9P7FpHjVRCLn7flx0ImGWlvDX7zo65T_8m4ul70joPe6m-pKCcfzCziXMQEClYEZyaK3QuQzUOTX9mZIsC6jdwLNWuNvl8Foe8uJbXdca4X3dd64pYWRaVn0_2wgOXKn436vrXFp5_ysfXlFypQfcSRFdTEF0R2n03B4kj8iSRY6ucVzTcYioFPm1rb9i6xbyJO62nvzhCUcm" 
-                                alt="Face Anatomy"
-                                className="max-h-[75vh] object-contain grayscale brightness-75 contrast-125 pointer-events-none select-none"
-                            />
-
-                            {/* Render Annotations */}
-                            {annotations.map(ann => (
-                                <div 
-                                    key={ann.id}
-                                    style={{ left: `${ann.x}%`, top: `${ann.y}%` }}
-                                    className="absolute w-6 h-6 -ml-3 -mt-3 border-2 border-primary rounded-full bg-primary/20 flex items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform shadow-glow"
-                                    onClick={(e) => { e.stopPropagation(); removeAnnotation(ann.id); }}
-                                >
-                                    <div className="w-1 h-1 bg-white rounded-full"></div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Thumbnails */}
-                    <div className="h-32 bg-secondary border-t border-slate-800 p-4 flex justify-center gap-4 overflow-x-auto shrink-0 z-10">
-                        <div className="flex flex-col items-center gap-2 cursor-pointer group">
-                            <div className="w-20 h-20 bg-cover bg-center ring-1 ring-primary shadow-glow opacity-100" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDSUE1RRwzEClhcpTTYZcc_E9LkSpJfJheE2nyJWpim-0VxDKf6Ul1v_MabZXzkY_zMA6DlYdvaCpwGyFJC6Z2SIB3ZtVX-C2X4NiP5GSBLk7Qo5jovKsOsoxtk2S4lBsMF3FIjXptKSgWJ_hL2aZwJmt3_OVq8ZFpE2BmXIok9akil6ppe9Kwfqq_8pv3rsxBWj9eKh-igZPqbIl8zk6MGsn2dHOEbxfZeyMblRrojP6bzaHiDy0dB9Fnme2fsS9NrmJJwS6tDyaoH")'}}></div>
-                            <span className="font-mono text-[10px] uppercase text-primary tracking-wider">Frontal</span>
-                        </div>
-                    </div>
-                </main>
-
-                {/* Layers Panel */}
-                <aside className="w-72 bg-secondary border-l border-slate-800 flex flex-col">
-                    <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-                        <h3 className="font-mono text-xs uppercase tracking-wider text-white">Camadas Ativas</h3>
-                        <button className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><span className="material-symbols-outlined">add</span></button>
-                    </div>
-                    <div className="p-3 space-y-1">
-                        {annotations.map((ann, index) => (
-                            <div key={ann.id} className="flex items-center justify-between p-3 bg-slate-800/50 border border-primary/30 rounded-sm">
-                                <div className="flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-slate-500 text-sm">drag_indicator</span>
-                                    <span className="font-sans text-sm font-medium text-white">Marcador {index + 1}</span>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => removeAnnotation(ann.id)} className="text-slate-600 hover:text-rose-500"><span className="material-symbols-outlined text-base">delete</span></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </aside>
-            </div>
-        </div>
+        <SurgicalCanvas
+            evaluationId={id || ''}
+            imageUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuAcBg2f-0Jd81qvftlnSjRo5Z8yWbaq2h-pKNCVVTN4yTLDehB8omAjObDsK2EOhMQ9P7FpHjVRCLn7flx0ImGWlvDX7zo65T_8m4ul70joPe6m-pKCcfzCziXMQEClYEZyaK3QuQzUOTX9mZIsC6jdwLNWuNvl8Foe8uJbXdca4X3dd64pYWRaVn0_2wgOXKn436vrXFp5_ysfXlFypQfcSRFdTEF0R2n03B4kj8iSRY6ucVzTcYioFPm1rb9i6xbyJO62nvzhCUcm"
+            imageViews={[
+                {
+                    angle: 'frontal',
+                    url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDSUE1RRwzEClhcpTTYZcc_E9LkSpJfJheE2nyJWpim-0VxDKf6Ul1v_MabZXzkY_zMA6DlYdvaCpwGyFJC6Z2SIB3ZtVX-C2X4NiP5GSBLk7Qo5jovKsOsoxtk2S4lBsMF3FIjXptKSgWJ_hL2aZwJmt3_OVq8ZFpE2BmXIok9akil6ppe9Kwfqq_8pv3rsxBWj9eKh-igZPqbIl8zk6MGsn2dHOEbxfZeyMblRrojP6bzaHiDy0dB9Fnme2fsS9NrmJJwS6tDyaoH',
+                    label: 'Frontal'
+                }
+            ]}
+        />
     );
 }
