@@ -4,6 +4,8 @@ import { RoutePath } from '../../types';
 import { EvaluationStepData } from '../../types/evaluationTypes';
 import { calculateScore, getStepTitle } from '../../lib/scoreCalculator';
 import { useClinic } from '../../context/ClinicContext';
+import { evaluationAutoSave } from '../../lib/evaluationAutoSave';
+import { EvaluationPhotoUpload } from '../../components/EvaluationPhotoUpload';
 import { Step1 } from './Step1';
 import { Step2 } from './Step2';
 import { Step3 } from './Step3';
@@ -16,27 +18,71 @@ import { Step8 } from './Step8';
 export const EvaluationWizard = () => {
   const navigate = useNavigate();
   const { patientId } = useParams();
-  const { getPatient, addEvaluation } = useClinic();
+  const { getPatient } = useClinic();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<EvaluationStepData>({});
+  const [evaluationId, setEvaluationId] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<Array<{ step: number; url: string; uploaded_at: string }>>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [autoSaveIndicator, setAutoSaveIndicator] = useState<'saving' | 'saved' | null>(null);
 
   const patient = getPatient(patientId || '');
   const currentScore = calculateScore(formData);
 
   useEffect(() => {
-    const autoSaveTimer = setInterval(() => {
+    const initializeEvaluation = async () => {
+      if (!patientId || !patient) return;
+
+      const existingDraft = await evaluationAutoSave.loadDraft(patientId);
+
+      if (existingDraft) {
+        setEvaluationId(existingDraft.id);
+        setCurrentStep(existingDraft.current_step || 1);
+        setFormData({
+          step1: existingDraft.step1_data,
+          step2: existingDraft.step2_data,
+          step3: existingDraft.step3_data,
+          step4: existingDraft.step4_data,
+          step5: existingDraft.step5_data,
+          step6: existingDraft.step6_data,
+          step7: existingDraft.step7_data,
+          step8: existingDraft.step8_data,
+        });
+        setPhotos(existingDraft.photos || []);
+      } else {
+        const newEvaluationId = await evaluationAutoSave.createDraft(patientId, patient.name);
+        setEvaluationId(newEvaluationId);
+      }
+
+      setLoading(false);
+    };
+
+    initializeEvaluation();
+  }, [patientId, patient]);
+
+  useEffect(() => {
+    if (!evaluationId || !formData[`step${currentStep}` as keyof EvaluationStepData]) return;
+
+    const autoSaveTimer = setTimeout(async () => {
       setAutoSaveIndicator('saving');
-      setTimeout(() => {
+      const success = await evaluationAutoSave.saveStep(
+        evaluationId,
+        currentStep,
+        formData[`step${currentStep}` as keyof EvaluationStepData]
+      );
+
+      if (success) {
         setAutoSaveIndicator('saved');
         setTimeout(() => setAutoSaveIndicator(null), 2000);
-      }, 500);
-    }, 30000);
+      } else {
+        setAutoSaveIndicator(null);
+      }
+    }, 2000);
 
-    return () => clearInterval(autoSaveTimer);
-  }, [formData]);
+    return () => clearTimeout(autoSaveTimer);
+  }, [formData, currentStep, evaluationId]);
 
   const updateStepData = (step: number, data: any) => {
     setFormData(prev => ({
@@ -60,49 +106,80 @@ export const EvaluationWizard = () => {
   };
 
   const handleFinalize = async () => {
+    if (!evaluationId) return;
+
     setSaving(true);
 
-    const evaluation = {
-      patientId: patientId || '',
-      patientName: patient?.name || 'Unknown',
-      name: 'Avaliação Facial Completa',
-      date: new Date().toISOString().split('T')[0],
-      score: currentScore,
-      status: 'Completed' as const,
-      type: 'Dermatology' as const,
-    };
-
-    const result = await addEvaluation(evaluation);
+    const success = await evaluationAutoSave.finalize(evaluationId, currentScore, formData);
 
     setSaving(false);
 
-    if (result) {
-      navigate(RoutePath.EVALUATIONS_SUCCESS.replace(':id', result.id));
+    if (success) {
+      navigate(RoutePath.EVALUATIONS_SUCCESS.replace(':id', evaluationId));
     }
   };
 
   const renderStep = () => {
+    let stepComponent;
+
     switch (currentStep) {
       case 1:
-        return <Step1 data={formData.step1} onChange={(data) => updateStepData(1, data)} />;
+        stepComponent = <Step1 data={formData.step1} onChange={(data) => updateStepData(1, data)} />;
+        break;
       case 2:
-        return <Step2 data={formData.step2} onChange={(data) => updateStepData(2, data)} />;
+        stepComponent = <Step2 data={formData.step2} onChange={(data) => updateStepData(2, data)} />;
+        break;
       case 3:
-        return <Step3 data={formData.step3} onChange={(data) => updateStepData(3, data)} />;
+        stepComponent = <Step3 data={formData.step3} onChange={(data) => updateStepData(3, data)} />;
+        break;
       case 4:
-        return <Step4 data={formData.step4} onChange={(data) => updateStepData(4, data)} />;
+        stepComponent = <Step4 data={formData.step4} onChange={(data) => updateStepData(4, data)} />;
+        break;
       case 5:
-        return <Step5 data={formData.step5} onChange={(data) => updateStepData(5, data)} />;
+        stepComponent = <Step5 data={formData.step5} onChange={(data) => updateStepData(5, data)} />;
+        break;
       case 6:
-        return <Step6 data={formData.step6} onChange={(data) => updateStepData(6, data)} />;
+        stepComponent = <Step6 data={formData.step6} onChange={(data) => updateStepData(6, data)} />;
+        break;
       case 7:
-        return <Step7 data={formData.step7} onChange={(data) => updateStepData(7, data)} />;
+        stepComponent = <Step7 data={formData.step7} onChange={(data) => updateStepData(7, data)} />;
+        break;
       case 8:
-        return <Step8 data={formData.step8} onChange={(data) => updateStepData(8, data)} calculatedScore={currentScore} />;
+        stepComponent = <Step8 data={formData.step8} onChange={(data) => updateStepData(8, data)} calculatedScore={currentScore} />;
+        break;
       default:
         return null;
     }
+
+    return (
+      <>
+        {stepComponent}
+        {evaluationId && (
+          <div className="mt-12 pt-8 border-t border-border dark:border-slate-800">
+            <EvaluationPhotoUpload
+              evaluationId={evaluationId}
+              step={currentStep}
+              photos={photos}
+              onPhotosChange={setPhotos}
+            />
+          </div>
+        )}
+      </>
+    );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <span className="material-symbols-outlined text-5xl text-primary animate-spin mb-4">
+            progress_activity
+          </span>
+          <p className="font-mono text-slate-500">Carregando avaliação...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!patient) {
     return (

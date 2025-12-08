@@ -6,6 +6,7 @@ import { useClinic } from '../context/ClinicContext';
 
 export { EvaluationWizard } from './Evaluations/EvaluationWizard';
 export { EvaluationSuccess } from './Evaluations/EvaluationSuccess';
+export { EvaluationCompare as CompareEvaluations } from './EvaluationCompare';
 
 export const EvaluationsList = () => {
   const navigate = useNavigate();
@@ -308,79 +309,3 @@ export const EvaluationDetails = () => {
     );
 }
 
-export const CompareEvaluations = () => {
-    return (
-        <div className="flex flex-col gap-8">
-            <div className="border-b border-border dark:border-slate-800 pb-6">
-                <h1 className="font-serif text-3xl text-slate-900 dark:text-white italic">Comparativo Clínico</h1>
-                <p className="font-mono text-xs text-slate-500 mt-2 uppercase tracking-wider">Análise de Evolução &bull; Paciente: Ricardo Santos</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 bg-white dark:bg-slate-900 border border-border dark:border-slate-800 shadow-atlas">
-                <label className="flex flex-col gap-2">
-                    <span className="font-mono text-xs uppercase tracking-wider text-slate-500">Ponto A (Referência)</span>
-                    <select className="w-full bg-slate-50 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-700 py-2 px-3 focus:border-primary outline-none font-sans text-slate-900 dark:text-white">
-                        <option>Pré-Op 2024-01-15</option>
-                    </select>
-                </label>
-                <label className="flex flex-col gap-2">
-                    <span className="font-mono text-xs uppercase tracking-wider text-slate-500">Ponto B (Atual)</span>
-                    <select className="w-full bg-slate-50 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-700 py-2 px-3 focus:border-primary outline-none font-sans text-slate-900 dark:text-white">
-                        <option>Pós-Op 2024-06-20</option>
-                    </select>
-                </label>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                {/* Vertical Divider line */}
-                <div className="hidden md:block absolute top-0 bottom-0 left-1/2 w-px bg-slate-200 dark:bg-slate-800 -translate-x-1/2 border-l border-dashed border-slate-300 dark:border-slate-700"></div>
-
-                <div className="space-y-6">
-                    <h2 className="font-serif text-xl text-slate-900 dark:text-white text-center bg-slate-100 dark:bg-slate-800 py-2 border-y border-slate-200 dark:border-slate-700">Janeiro 2024</h2>
-                    <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-sm space-y-4">
-                        <h3 className="font-mono text-xs uppercase tracking-wider text-slate-500 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Sinais Vitais</h3>
-                        <div className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Pressão Arterial</span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">135/88 mmHg</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Freq. Cardíaca</span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">82 bpm</span>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-sm space-y-4">
-                        <h3 className="font-mono text-xs uppercase tracking-wider text-slate-500 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Laboratorial</h3>
-                        <div className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Glicose</span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">95 mg/dL</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    <h2 className="font-serif text-xl text-slate-900 dark:text-white text-center bg-slate-100 dark:bg-slate-800 py-2 border-y border-slate-200 dark:border-slate-700">Junho 2024</h2>
-                    <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-sm space-y-4 relative">
-                        <div className="absolute top-0 right-0 w-2 h-2 bg-emerald-500"></div>
-                        <h3 className="font-mono text-xs uppercase tracking-wider text-slate-500 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Sinais Vitais</h3>
-                        <div className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Pressão Arterial</span>
-                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1">122/80 mmHg</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Freq. Cardíaca</span>
-                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1">74 bpm</span>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-sm space-y-4 relative">
-                        <div className="absolute top-0 right-0 w-2 h-2 bg-rose-500"></div>
-                        <h3 className="font-mono text-xs uppercase tracking-wider text-slate-500 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Laboratorial</h3>
-                        <div className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Glicose</span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">92 mg/dL</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}

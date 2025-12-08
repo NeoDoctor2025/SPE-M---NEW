@@ -1,9 +1,11 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { RoutePath } from '../types';
 import { useClinic } from '../context/ClinicContext';
 import { exportEvaluationToPDF } from '../lib/pdfExport';
+import { exportDetailedEvaluationToPDF } from '../lib/pdfExportDetailed';
+import { supabase } from '../lib/supabase';
 
 export const EvaluationSuccess = () => {
   const navigate = useNavigate();
@@ -68,16 +70,48 @@ export const ExportEvaluation = () => {
     const { getEvaluation, getPatient } = useClinic();
     const evaluation = getEvaluation(id || '');
     const patient = evaluation ? getPatient(evaluation.patientId) : null;
+    const [fullEvaluation, setFullEvaluation] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    const handleDownloadPDF = () => {
-        if (evaluation && patient) {
-            exportEvaluationToPDF(evaluation, patient);
+    useEffect(() => {
+        const loadFullEvaluation = async () => {
+            if (!id) return;
+
+            const { data, error } = await supabase
+                .from('evaluations')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (!error && data) {
+                setFullEvaluation(data);
+            }
+            setLoading(false);
+        };
+
+        loadFullEvaluation();
+    }, [id]);
+
+    const handleDownloadPDF = async () => {
+        if (fullEvaluation && patient) {
+            await exportDetailedEvaluationToPDF(fullEvaluation, patient);
         } else {
             alert('Avaliação ou paciente não encontrado');
         }
     };
 
-    if (!evaluation || !patient) {
+    if (loading) {
+        return (
+            <div className="p-8 text-center">
+                <span className="material-symbols-outlined text-5xl text-primary animate-spin">
+                    progress_activity
+                </span>
+                <p className="font-mono text-slate-500 mt-4">Carregando avaliação...</p>
+            </div>
+        );
+    }
+
+    if (!evaluation || !patient || !fullEvaluation) {
         return (
             <div className="p-8 text-center">
                 <p className="font-mono text-slate-500">Avaliação não encontrada.</p>
