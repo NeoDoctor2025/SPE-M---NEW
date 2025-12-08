@@ -2,6 +2,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { RoutePath } from '../types';
+import { useClinic } from '../context/ClinicContext';
+
+export { EvaluationWizard } from './Evaluations/EvaluationWizard';
+export { EvaluationSuccess } from './Evaluations/EvaluationSuccess';
 
 export const EvaluationsList = () => {
   const navigate = useNavigate();
@@ -107,11 +111,23 @@ export const EvaluationsList = () => {
 
 export const SelectPatientForEvaluation = () => {
     const navigate = useNavigate();
+    const { patients } = useClinic();
     const [selected, setSelected] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredPatients = patients.filter(p =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.id.includes(searchTerm) ||
+        p.cpf.includes(searchTerm)
+    );
 
     const handleStart = () => {
         if (selected) navigate(`/evaluations/wizard/${selected}`);
-    }
+    };
+
+    const getInitials = (name: string) => {
+        return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    };
 
     return (
         <div className="flex flex-col items-center py-16 px-4">
@@ -121,7 +137,6 @@ export const SelectPatientForEvaluation = () => {
             </div>
 
             <div className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-border dark:border-slate-800 shadow-atlas p-8 relative">
-                {/* Decor */}
                 <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-primary"></div>
                 <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-primary"></div>
                 <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l border-primary"></div>
@@ -129,35 +144,54 @@ export const SelectPatientForEvaluation = () => {
 
                 <div className="relative mb-8">
                     <span className="material-symbols-outlined absolute left-4 top-3.5 text-slate-400">search</span>
-                    <input className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-700 focus:border-primary outline-none font-mono text-sm text-slate-900 dark:text-white placeholder-slate-400 transition-colors" placeholder="BUSCAR POR NOME, CPF OU ID..." />
+                    <input
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-700 focus:border-primary outline-none font-mono text-sm text-slate-900 dark:text-white placeholder-slate-400 transition-colors"
+                        placeholder="BUSCAR POR NOME, CPF OU ID..."
+                    />
                 </div>
 
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                    {[
-                        { id: '123456', name: 'João Silva', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAxnzC__nPVChLn5XJBQx_18mFHeyrM2CWSSrKi7Pta9A3LSD3l8JXBo8HvRyYg-SW0_o8H-eMNy334a_zI_ctil1QJ7Q4tCmsF_kjQHqDambItM9FWPPFfLnlkossRjYFpjlaQygJlQDj7r9A1G5u8zz_4Wo--HZfdlOLq3Dooqi1hKjPCieo_ejnehrTcZBb3AcODyN_-1OKKCmTGcVjyMWFDX-21iAXxOljDCc4eo6RNweodS7Nc9NxkjRUeSxQ6S9bHICBbK03k' },
-                        { id: '789012', name: 'Maria Almeida', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDH4gRg1ppRgZQJOSuWM0X5FE6bB5XVK7swj1BH5JMAxuFBd5DetlQisTv8s7dZrCnzxI68qMSRWIukdcWk25nc9bNd7U2kBwWUTPsaj4gjgM4QkHB4vBc26ZveMMXgB-Z7VjgDHebDPq_iU8wkxpJ8mDIOJqvBmdoj1iLuAUWGLGAft58pR-_VyJYNEilrTk3ocmw45aiVUOO0ok0zTKf0FiMkLEyeS9JDIbIhOvHVq_Qrij-0iqSwwPhFteaU9HdFMtBbhEaoKHP4' }
-                    ].map(p => (
-                        <div 
-                            key={p.id} 
-                            onClick={() => setSelected(p.id)}
-                            className={`flex items-center justify-between p-4 border rounded-sm cursor-pointer transition-all group ${selected === p.id ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-sm bg-cover bg-center grayscale group-hover:grayscale-0 transition-all" style={{backgroundImage: `url(${p.img})`}}></div>
-                                <div>
-                                    <p className="font-serif text-lg text-slate-900 dark:text-white leading-none">{p.name}</p>
-                                    <p className="font-mono text-[10px] text-slate-500 dark:text-slate-400 mt-1">ID: {p.id}</p>
+                {filteredPatients.length > 0 ? (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                        {filteredPatients.map(p => (
+                            <div
+                                key={p.id}
+                                onClick={() => setSelected(p.id)}
+                                className={`flex items-center justify-between p-4 border rounded-sm cursor-pointer transition-all group ${selected === p.id ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    {p.photoUrl ? (
+                                        <div className="w-10 h-10 rounded-sm bg-cover bg-center grayscale group-hover:grayscale-0 transition-all" style={{backgroundImage: `url(${p.photoUrl})`}}></div>
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-serif font-bold text-slate-600 dark:text-slate-400 text-sm">
+                                            {getInitials(p.name)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="font-serif text-lg text-slate-900 dark:text-white leading-none">{p.name}</p>
+                                        <p className="font-mono text-[10px] text-slate-500 dark:text-slate-400 mt-1">ID: {p.id}</p>
+                                    </div>
+                                </div>
+                                <div className={`w-5 h-5 border flex items-center justify-center ${selected === p.id ? 'border-primary bg-primary text-white' : 'border-slate-300 dark:border-slate-600 text-transparent'}`}>
+                                    <span className="material-symbols-outlined text-sm font-bold">check</span>
                                 </div>
                             </div>
-                            <div className={`w-5 h-5 border flex items-center justify-center ${selected === p.id ? 'border-primary bg-primary text-white' : 'border-slate-300 dark:border-slate-600 text-transparent'}`}>
-                                <span className="material-symbols-outlined text-sm font-bold">check</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-16 text-center">
+                        <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700 mb-4 block">search_off</span>
+                        <p className="font-mono text-sm text-slate-500">Nenhum paciente encontrado</p>
+                        <Link to={RoutePath.PATIENTS_NEW} className="mt-4 inline-flex items-center gap-2 text-primary hover:text-primary-dark font-mono text-xs uppercase transition-colors">
+                            <span className="material-symbols-outlined text-sm">add_circle</span>
+                            Cadastrar Novo Paciente
+                        </Link>
+                    </div>
+                )}
 
                 <div className="mt-10 flex justify-end">
-                    <button 
+                    <button
                         onClick={handleStart}
                         disabled={!selected}
                         className={`px-8 py-3 font-mono text-xs uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 ${selected ? 'bg-secondary dark:bg-primary text-white hover:bg-slate-800 dark:hover:bg-primary-dark' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'}`}
@@ -171,160 +205,6 @@ export const SelectPatientForEvaluation = () => {
     );
 }
 
-export const EvaluationWizard = () => {
-    const [elasticity, setElasticity] = useState(3);
-    const [wrinkles, setWrinkles] = useState(2);
-    const navigate = useNavigate();
-    const { patientId } = useParams();
-
-    return (
-        <div className="flex flex-col h-full">
-            {/* Technical Header */}
-            <div className="mb-8 border-b border-border dark:border-slate-800 pb-4">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="font-serif text-3xl font-light text-slate-900 dark:text-white">Avaliação Facial <span className="text-slate-300 dark:text-slate-700">/</span> <span className="italic text-primary">Elasticidade</span></h1>
-                        <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mt-1">Protocolo ID: AF-2024-X92</p>
-                    </div>
-                    
-                    {/* Progress Steps */}
-                    <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((step, idx) => (
-                            <div key={step} className={`w-8 h-1 ${idx === 0 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-800'}`}></div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white dark:bg-slate-900 p-8 border border-border dark:border-slate-800 shadow-atlas relative">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
-                        <h2 className="font-serif text-2xl text-slate-900 dark:text-white mb-8">Parâmetros Clínicos</h2>
-                        
-                        {/* Custom Technical Sliders */}
-                        <div className="space-y-10">
-                            <div className="group">
-                                <div className="flex justify-between mb-4">
-                                    <label className="font-mono text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors">Elasticidade da Pele</label>
-                                    <span className="font-mono text-lg font-bold text-slate-900 dark:text-white">{elasticity}<span className="text-xs text-slate-400 font-normal">/5</span></span>
-                                </div>
-                                <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-none">
-                                    <div className="absolute top-0 left-0 h-full bg-primary" style={{width: `${(elasticity/5)*100}%`}}></div>
-                                    <input 
-                                        type="range" min="1" max="5" value={elasticity} 
-                                        onChange={(e) => setElasticity(Number(e.target.value))}
-                                        className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-                                    />
-                                    {/* Ticks */}
-                                    <div className="absolute top-3 w-full flex justify-between px-1">
-                                        {[1, 2, 3, 4, 5].map(n => <div key={n} className="w-px h-2 bg-slate-300 dark:bg-slate-700"></div>)}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="group">
-                                <div className="flex justify-between mb-4">
-                                    <label className="font-mono text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors">Rugas Periorbitais</label>
-                                    <span className="font-mono text-lg font-bold text-slate-900 dark:text-white">{wrinkles}<span className="text-xs text-slate-400 font-normal">/5</span></span>
-                                </div>
-                                <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-none">
-                                    <div className="absolute top-0 left-0 h-full bg-primary" style={{width: `${(wrinkles/5)*100}%`}}></div>
-                                    <input 
-                                        type="range" min="1" max="5" value={wrinkles}
-                                        onChange={(e) => setWrinkles(Number(e.target.value))}
-                                        className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Radio Grid */}
-                        <div className="mt-12">
-                            <p className="font-mono text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Nível de Pigmentação</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {['Leve', 'Moderado', 'Severo', 'Muito Severo'].map((label, idx) => (
-                                    <label key={label} className="flex items-center gap-4 p-4 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 has-[:checked]:border-primary has-[:checked]:bg-primary/5 dark:has-[:checked]:bg-primary/10 transition-all">
-                                        <div className="relative flex items-center justify-center w-4 h-4 border border-slate-400 dark:border-slate-600 rounded-full has-[:checked]:border-primary">
-                                            <input type="radio" name="pigment" defaultChecked={idx === 0} className="peer appearance-none w-full h-full absolute inset-0 cursor-pointer" />
-                                            <div className="w-2 h-2 bg-primary rounded-full opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                                        </div>
-                                        <span className="font-serif text-lg text-slate-900 dark:text-white">{label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
-                            <label className="font-mono text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-3">Observações Técnicas</label>
-                            <textarea className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 p-4 focus:border-primary outline-none font-sans text-slate-900 dark:text-white" rows={3} placeholder="Insira notas clínicas..."></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-1 space-y-6">
-                    {/* Score Gauge */}
-                    <div className="bg-secondary dark:bg-slate-950 text-white p-6 border border-secondary dark:border-slate-800 shadow-atlas relative overflow-hidden">
-                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary opacity-20 rounded-full blur-2xl"></div>
-                        <h3 className="font-mono text-[10px] uppercase tracking-widest opacity-60 mb-2">Score em Tempo Real</h3>
-                        <div className="flex items-end gap-2">
-                            <p className="font-serif text-6xl font-light text-white">7.5</p>
-                            <p className="font-mono text-sm mb-2 opacity-60">/ 10</p>
-                        </div>
-                        
-                        {/* Micro Sparkline */}
-                        <div className="mt-4 h-8 w-full flex items-end gap-1 opacity-50">
-                            <div className="w-1 bg-primary h-[20%]"></div>
-                            <div className="w-1 bg-primary h-[40%]"></div>
-                            <div className="w-1 bg-primary h-[30%]"></div>
-                            <div className="w-1 bg-primary h-[60%]"></div>
-                            <div className="w-1 bg-primary h-[50%]"></div>
-                            <div className="w-1 bg-white h-[75%]"></div>
-                        </div>
-                    </div>
-
-                    {/* Anatomy Viewfinder */}
-                    <div 
-                        className="bg-white dark:bg-slate-900 p-1 border border-border dark:border-slate-800 shadow-atlas cursor-pointer group"
-                        onClick={() => navigate(RoutePath.EVALUATIONS_CANVAS.replace(':id', 'temp'))}
-                    >
-                        <div className="bg-slate-900 aspect-square relative flex items-center justify-center overflow-hidden group-hover:ring-1 ring-primary transition-all">
-                            {/* Viewfinder UI */}
-                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/30"></div>
-                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/30"></div>
-                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/30"></div>
-                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/30"></div>
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-10"></div>
-                            
-                            <span className="material-symbols-outlined text-6xl text-white/20 group-hover:text-white/40 transition-colors">face</span>
-                            <div className="absolute bottom-2 right-2 font-mono text-[10px] text-white/40">CANVAS_V1</div>
-                            
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                                <span className="font-mono text-xs text-white uppercase tracking-wider border border-white/50 px-3 py-1">Expandir</span>
-                            </div>
-                        </div>
-                        <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-border dark:border-slate-700 text-center">
-                            <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Mapeamento Anatômico</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-12 pt-6 border-t border-border dark:border-slate-800 flex justify-between items-center">
-                <button className="px-6 py-2.5 text-slate-500 dark:text-slate-400 font-mono text-xs uppercase tracking-wider hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm">arrow_back</span> Anterior
-                </button>
-                <button 
-                    onClick={() => navigate(RoutePath.EVALUATIONS_SUCCESS.replace(':id', 'new'))}
-                    className="px-8 py-3 bg-primary text-white font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
-                >
-                    Finalizar Protocolo
-                    <span className="material-symbols-outlined text-sm">check_circle</span>
-                </button>
-            </div>
-        </div>
-    );
-}
 
 export const EvaluationDetails = () => {
     const navigate = useNavigate();
