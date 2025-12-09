@@ -289,17 +289,19 @@ export const EvaluationDetails = () => {
                         </div>
                         
                         <div className="flex flex-col gap-3">
-                            <button 
+                            <button
                                 onClick={() => navigate(RoutePath.EVALUATIONS_EXPORT.replace(':id', '88'))}
                                 className="w-full bg-secondary dark:bg-primary text-white font-mono text-xs uppercase tracking-widest py-4 hover:bg-slate-800 dark:hover:bg-primary-dark transition shadow-sm flex items-center justify-center gap-2"
                             >
-                                <span className="material-symbols-outlined text-sm">picture_as_pdf</span> Exportar PDF
+                                <span className="material-symbols-outlined text-sm" aria-hidden="true">picture_as_pdf</span>
+                                <span>Exportar PDF</span>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => navigate(RoutePath.EVALUATIONS_COMPARE)}
                                 className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase tracking-widest py-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center gap-2"
                             >
-                                <span className="material-symbols-outlined text-sm">compare_arrows</span> Comparar
+                                <span className="material-symbols-outlined text-sm" aria-hidden="true">compare_arrows</span>
+                                <span>Comparar</span>
                             </button>
                         </div>
                     </div>

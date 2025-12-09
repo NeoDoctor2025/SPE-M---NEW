@@ -213,6 +213,20 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     renderCanvas();
   }, [renderCanvas]);
 
+  const handleUndo = useCallback(() => {
+    const prevState = undo();
+    if (prevState) {
+      setAnnotations(prevState);
+    }
+  }, [undo]);
+
+  const handleRedo = useCallback(() => {
+    const nextState = redo();
+    if (nextState) {
+      setAnnotations(nextState);
+    }
+  }, [redo]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -373,20 +387,6 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     setStartPoint(null);
     setCurrentPath([]);
   };
-
-  const handleUndo = useCallback(() => {
-    const prevState = undo();
-    if (prevState) {
-      setAnnotations(prevState);
-    }
-  }, [undo]);
-
-  const handleRedo = useCallback(() => {
-    const nextState = redo();
-    if (nextState) {
-      setAnnotations(nextState);
-    }
-  }, [redo]);
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 4));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.25));
