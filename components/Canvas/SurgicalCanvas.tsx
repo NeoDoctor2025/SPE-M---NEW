@@ -78,72 +78,6 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
     setAnnotations(loadedAnnotations);
   }, [evaluationId, currentViewAngle]);
 
-  const renderCanvas = useCallback(() => {
-    if (!canvasRef.current || !image) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = image.width;
-    canvas.height = image.height;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    ctx.scale(zoom, zoom);
-    ctx.translate(panX, panY);
-
-    ctx.drawImage(image, 0, 0);
-
-    const visibleLayers = layers.filter((l) => l.visible).map((l) => l.id);
-    const visibleAnnotations = annotations.filter(
-      (a) => visibleLayers.includes(a.layer_id) && a.view_angle === currentViewAngle
-    );
-
-    visibleAnnotations.forEach((annotation) => {
-      drawAnnotation(ctx, annotation);
-    });
-
-    ctx.restore();
-  }, [image, annotations, layers, zoom, panX, panY, currentViewAngle, drawAnnotation]);
-
-  useEffect(() => {
-    loadLayers();
-    loadAnnotations();
-  }, [evaluationId]);
-
-  useEffect(() => {
-    if (imageViews.length > 0 && !imageViews.find((v) => v.angle === currentViewAngle)) {
-      setCurrentViewAngle(imageViews[0].angle);
-    }
-  }, [imageViews]);
-
-  useEffect(() => {
-    loadAnnotations();
-  }, [currentViewAngle]);
-
-  useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z' && !e.shiftKey) {
-          e.preventDefault();
-          handleUndo();
-        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
-          e.preventDefault();
-          handleRedo();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
-
   const drawAnnotation = useCallback((ctx: CanvasRenderingContext2D, annotation: Annotation) => {
     ctx.save();
     ctx.strokeStyle = annotation.color;
@@ -229,6 +163,72 @@ export const SurgicalCanvas: React.FC<SurgicalCanvasProps> = ({ evaluationId, im
 
     ctx.restore();
   }, []);
+
+  const renderCanvas = useCallback(() => {
+    if (!canvasRef.current || !image) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.scale(zoom, zoom);
+    ctx.translate(panX, panY);
+
+    ctx.drawImage(image, 0, 0);
+
+    const visibleLayers = layers.filter((l) => l.visible).map((l) => l.id);
+    const visibleAnnotations = annotations.filter(
+      (a) => visibleLayers.includes(a.layer_id) && a.view_angle === currentViewAngle
+    );
+
+    visibleAnnotations.forEach((annotation) => {
+      drawAnnotation(ctx, annotation);
+    });
+
+    ctx.restore();
+  }, [image, annotations, layers, zoom, panX, panY, currentViewAngle, drawAnnotation]);
+
+  useEffect(() => {
+    loadLayers();
+    loadAnnotations();
+  }, [evaluationId]);
+
+  useEffect(() => {
+    if (imageViews.length > 0 && !imageViews.find((v) => v.angle === currentViewAngle)) {
+      setCurrentViewAngle(imageViews[0].angle);
+    }
+  }, [imageViews]);
+
+  useEffect(() => {
+    loadAnnotations();
+  }, [currentViewAngle]);
+
+  useEffect(() => {
+    renderCanvas();
+  }, [renderCanvas]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   const getCanvasPoint = (e: React.MouseEvent): Point => {
     if (!canvasRef.current) return { x: 0, y: 0 };

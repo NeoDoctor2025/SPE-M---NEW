@@ -7,9 +7,9 @@ export interface UploadResult {
 }
 
 export const uploadPatientPhoto = async (
-  file: File,
-  patientId: string
-): Promise<UploadResult> => {
+  patientId: string,
+  file: File
+): Promise<string> => {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${patientId}-${Date.now()}.${fileExt}`;
@@ -24,17 +24,17 @@ export const uploadPatientPhoto = async (
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      return { success: false, error: uploadError.message };
+      throw new Error(uploadError.message);
     }
 
     const { data: { publicUrl } } = supabase.storage
       .from('patient-photos')
       .getPublicUrl(filePath);
 
-    return { success: true, url: publicUrl };
+    return publicUrl;
   } catch (error) {
     console.error('Unexpected error:', error);
-    return { success: false, error: 'Erro ao fazer upload da imagem' };
+    throw error;
   }
 };
 
