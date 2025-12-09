@@ -337,11 +337,10 @@ export const PatientForm = () => {
       const tempPatientId = `temp-${Date.now()}`;
 
       if (photoFile) {
-        const result = await uploadPatientPhoto(photoFile, tempPatientId);
-        if (result.success) {
-          photoUrl = result.url;
-        } else {
-          showToast('Erro ao fazer upload da foto: ' + result.error, 'error');
+        try {
+          photoUrl = await uploadPatientPhoto(tempPatientId, photoFile);
+        } catch (error: any) {
+          showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
           setUploading(false);
           return;
         }
