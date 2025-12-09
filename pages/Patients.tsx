@@ -4,6 +4,7 @@ import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { RoutePath } from '../types';
 import { useClinic } from '../context/ClinicContext';
 import { uploadPatientPhoto } from '../lib/storage';
+import { useToast } from '../lib/toast';
 
 // --- Utility Functions for Masking & Validation ---
 
@@ -275,6 +276,7 @@ export const PatientsList = () => {
 export const PatientForm = () => {
   const navigate = useNavigate();
   const { addPatient } = useClinic();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
       name: '',
       cpf: '',
@@ -307,13 +309,13 @@ export const PatientForm = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5242880) {
-        alert('Arquivo muito grande. Tamanho máximo: 5MB');
+        showToast('Arquivo muito grande. Tamanho máximo: 5MB', 'error');
         return;
       }
 
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        alert('Formato inválido. Use JPG, PNG ou WEBP');
+        showToast('Formato inválido. Use JPG, PNG ou WEBP', 'error');
         return;
       }
 
@@ -331,20 +333,21 @@ export const PatientForm = () => {
 
       setUploading(true);
 
-      const patientId = Math.floor(Math.random() * 1000000).toString();
       let photoUrl = undefined;
+      const tempPatientId = `temp-${Date.now()}`;
 
       if (photoFile) {
-        const result = await uploadPatientPhoto(photoFile, patientId);
+        const result = await uploadPatientPhoto(photoFile, tempPatientId);
         if (result.success) {
           photoUrl = result.url;
         } else {
-          alert('Erro ao fazer upload da foto: ' + result.error);
+          showToast('Erro ao fazer upload da foto: ' + result.error, 'error');
+          setUploading(false);
+          return;
         }
       }
 
-      addPatient({
-          id: patientId,
+      const newPatient = await addPatient({
           name: formData.name,
           cpf: formData.cpf,
           email: formData.email,
@@ -358,7 +361,13 @@ export const PatientForm = () => {
       });
 
       setUploading(false);
-      navigate(RoutePath.PATIENTS);
+
+      if (newPatient) {
+        showToast('Paciente cadastrado com sucesso!', 'success');
+        navigate(RoutePath.PATIENTS);
+      } else {
+        showToast('Erro ao criar paciente. Tente novamente.', 'error');
+      }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -576,12 +585,13 @@ export const PatientForm = () => {
 
 export const PatientEdit = () => {
     const { id } = useParams();
-    const { getPatient } = useClinic();
+    const { getPatient, updatePatient } = useClinic();
     const navigate = useNavigate();
-    
-    // We use a state to handle controlled inputs for masking
+    const { showToast } = useToast();
+
     const [formData, setFormData] = useState<any>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         const p = getPatient(id || '');
@@ -596,9 +606,9 @@ export const PatientEdit = () => {
         let value = e.target.value;
         if (e.target.name === 'cpf') value = maskCPF(value);
         if (e.target.name === 'phone') value = maskPhone(value);
-        
+
         setFormData({ ...formData, [e.target.name]: value });
-        
+
         if (errors[e.target.name]) {
             setErrors({ ...errors, [e.target.name]: '' });
         }
@@ -613,12 +623,19 @@ export const PatientEdit = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!validate()) return;
-        // In a real app, we would update the context here. 
-        // For this mock, we just navigate back or show success.
-        alert("Alterações salvas (Simulação)");
-        navigate(RoutePath.PATIENTS);
+
+        setSaving(true);
+        const success = await updatePatient(id || '', formData);
+        setSaving(false);
+
+        if (success) {
+            showToast('Paciente atualizado com sucesso!', 'success');
+            navigate(RoutePath.PATIENTS);
+        } else {
+            showToast('Erro ao atualizar paciente. Tente novamente.', 'error');
+        }
     };
 
     return (
@@ -732,8 +749,22 @@ export const PatientEdit = () => {
 
             <div className="sticky bottom-0 bg-background/80 dark:bg-slate-950/80 backdrop-blur-md border-t border-border dark:border-slate-800 p-4 mt-8 -mx-8 flex justify-end gap-4">
                 <Link to={RoutePath.PATIENTS} className="px-6 py-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Descartar</Link>
-                <button onClick={handleSave} className="bg-primary text-white px-8 py-3 font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-primary-dark transition-colors">
-                    Salvar Alterações
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-primary text-white px-8 py-3 font-mono text-xs uppercase tracking-widest shadow-lg hover:bg-primary-dark transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">save</span>
+                      Salvar Alterações
+                    </>
+                  )}
                 </button>
             </div>
         </div>
