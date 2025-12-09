@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { RoutePath } from '../types';
+import { RoutePath, PatientMedicalInfo, Medication } from '../types';
 import { useClinic } from '../context/ClinicContext';
 import { uploadPatientPhoto } from '../lib/storage';
 import { useToast } from '../lib/toast';
@@ -592,11 +592,14 @@ export const PatientEdit = () => {
     const [formData, setFormData] = useState<any>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     useEffect(() => {
         const p = getPatient(id || '');
         if (p) {
             setFormData(p);
+            setPhotoPreview(p.photoUrl || null);
         }
     }, [id, getPatient]);
 
@@ -621,6 +624,38 @@ export const PatientEdit = () => {
         if (formData.email && !validateEmail(formData.email)) newErrors.email = "E-mail inválido.";
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showToast('Por favor, selecione um arquivo de imagem.', 'error');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('A imagem deve ter no máximo 5MB.', 'error');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const photoUrl = await uploadPatientPhoto(id || '', file);
+            setPhotoPreview(photoUrl);
+            setFormData({ ...formData, photoUrl });
+            showToast('Foto carregada com sucesso!', 'success');
+        } catch (error) {
+            showToast('Erro ao carregar foto. Tente novamente.', 'error');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleRemovePhoto = () => {
+        setPhotoPreview(null);
+        setFormData({ ...formData, photoUrl: null });
     };
 
     const handleSave = async () => {
@@ -655,6 +690,51 @@ export const PatientEdit = () => {
             </div>
 
             <div className="flex flex-col gap-px bg-border dark:bg-slate-800 border border-border dark:border-slate-800">
+                {/* Photo Section */}
+                <details className="bg-white dark:bg-slate-900 group" open>
+                    <summary className="flex items-center justify-between p-5 cursor-pointer list-none hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <span className="font-serif text-lg text-slate-900 dark:text-white italic">Foto do Paciente</span>
+                        <span className="material-symbols-outlined text-slate-400 group-open:rotate-180 transition-transform">expand_more</span>
+                    </summary>
+                    <div className="px-6 pb-8 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex flex-col items-center gap-4 pt-6">
+                            <div className="w-32 h-32 rounded-sm border border-slate-200 dark:border-slate-700 p-1 bg-white dark:bg-slate-800 shadow-sm">
+                                {photoPreview ? (
+                                    <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: `url("${photoPreview}")`}}></div>
+                                ) : (
+                                    <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-5xl text-slate-400">person</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-3">
+                                <label className="px-4 py-2 bg-primary text-white font-mono text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-dark transition-colors flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-sm">upload</span>
+                                    {uploading ? 'Carregando...' : 'Alterar Foto'}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                        disabled={uploading}
+                                        className="hidden"
+                                    />
+                                </label>
+                                {photoPreview && (
+                                    <button
+                                        onClick={handleRemovePhoto}
+                                        disabled={uploading}
+                                        className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                        Remover
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-xs text-slate-400 font-mono">Máximo 5MB • JPG, PNG ou GIF</p>
+                        </div>
+                    </div>
+                </details>
+
                 {/* Accordion Item 1 */}
                 <details className="bg-white dark:bg-slate-900 group" open>
                     <summary className="flex items-center justify-between p-5 cursor-pointer list-none hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
@@ -773,28 +853,90 @@ export const PatientEdit = () => {
 
 export const PatientDetails = () => {
     const { id } = useParams();
-    const { getPatient } = useClinic();
+    const navigate = useNavigate();
+    const { getPatient, getPatientEvaluations, getMedicalInfo, updateMedicalInfo } = useClinic();
+    const { showToast } = useToast();
+    const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'images'>('overview');
+    const [medicalInfo, setMedicalInfo] = useState<PatientMedicalInfo | null>(null);
+    const [editingMedical, setEditingMedical] = useState(false);
+    const [medicalFormData, setMedicalFormData] = useState({
+        allergies: [] as string[],
+        conditions: [] as string[],
+        medications: [] as Medication[],
+        notes: '',
+    });
+
     const patient = getPatient(id || '');
+    const patientEvaluations = getPatientEvaluations(id || '');
+
+    useEffect(() => {
+        if (id) {
+            getMedicalInfo(id).then(info => {
+                setMedicalInfo(info);
+                if (info) {
+                    setMedicalFormData({
+                        allergies: info.allergies,
+                        conditions: info.conditions,
+                        medications: info.medications,
+                        notes: info.notes,
+                    });
+                }
+            });
+        }
+    }, [id]);
 
     if (!patient) return <div className="p-8 text-center">Paciente não encontrado.</div>;
 
+    const calculateAge = (birthDate: string) => {
+        const birth = new Date(birthDate);
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            age--;
+        }
+        return age;
+    };
+
+    const lastEvaluation = patientEvaluations.length > 0
+        ? patientEvaluations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+        : null;
+
+    const handleSaveMedicalInfo = async () => {
+        if (!id) return;
+        const success = await updateMedicalInfo(id, medicalFormData);
+        if (success) {
+            showToast('Informações médicas atualizadas com sucesso!', 'success');
+            setEditingMedical(false);
+            const updated = await getMedicalInfo(id);
+            setMedicalInfo(updated);
+        } else {
+            showToast('Erro ao atualizar informações médicas.', 'error');
+        }
+    };
+
     return (
         <div className="flex flex-col gap-8">
-            {/* Header Card */}
             <div className="bg-white dark:bg-slate-900 p-8 border border-border dark:border-slate-800 shadow-atlas relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10"></div>
-                
+
                 <div className="flex flex-col md:flex-row justify-between items-start gap-6 relative z-10">
                     <div className="flex items-center gap-6">
                         <div className="w-24 h-24 rounded-sm border border-slate-200 dark:border-slate-700 p-1 bg-white dark:bg-slate-800 shadow-sm">
-                            <div className="w-full h-full bg-cover bg-center grayscale contrast-110" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuD1UW-zq_49mXRU9bYosKN1GPxEXOpOhyUBgw0kE1yuXvmsbKy1MK76L8_Bms3Ovv7jGZB6_PjpiJRTNOSz1KxEJpp4PO6yO07RT6xLAYPgdNAOgnejaCAIimHdp48pT3KUbV-k-upUrD1COCHUoaAISLcgk8NWdRt197oS6Q7WpwG3Wg3fXeOLHJmy_gbGhyF4X9sc7BVKa52-TvGgKL9eO1VoQOSVHfMLOYewReDdaA0IpKDiCaLj_SvnQX1h-X_-pCNiyCLHLThs")'}}></div>
+                            {patient.photoUrl ? (
+                                <div className="w-full h-full bg-cover bg-center grayscale contrast-110" style={{backgroundImage: `url("${patient.photoUrl}")`}}></div>
+                            ) : (
+                                <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-4xl text-slate-400">person</span>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <h1 className="font-serif text-3xl text-slate-900 dark:text-white font-bold mb-1">{patient.name}</h1>
                             <div className="flex gap-4 text-slate-500 font-mono text-xs uppercase tracking-wide">
-                                <span>30 Anos</span>
+                                <span>{calculateAge(patient.birthDate)} Anos</span>
                                 <span>&bull;</span>
-                                <span>ID: {patient.id}</span>
+                                <span>ID: {patient.id.substring(0, 8)}</span>
                                 <span>&bull;</span>
                                 <span className="text-emerald-600 dark:text-emerald-400">{patient.status}</span>
                             </div>
@@ -807,59 +949,202 @@ export const PatientDetails = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
             <div className="border-b border-border dark:border-slate-800">
                 <div className="flex gap-1">
-                    <button className="px-6 py-3 border-b-2 border-primary text-primary font-mono text-xs uppercase tracking-widest bg-primary/5">Visão Geral</button>
-                    <button className="px-6 py-3 border-b-2 border-transparent text-slate-500 dark:text-slate-400 font-mono text-xs uppercase tracking-widest hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Histórico</button>
-                    <button className="px-6 py-3 border-b-2 border-transparent text-slate-500 dark:text-slate-400 font-mono text-xs uppercase tracking-widest hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Imagens</button>
+                    <button
+                        onClick={() => setActiveTab('overview')}
+                        className={`px-6 py-3 border-b-2 font-mono text-xs uppercase tracking-widest transition-colors ${
+                            activeTab === 'overview'
+                                ? 'border-primary text-primary bg-primary/5'
+                                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                        Visão Geral
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('history')}
+                        className={`px-6 py-3 border-b-2 font-mono text-xs uppercase tracking-widest transition-colors ${
+                            activeTab === 'history'
+                                ? 'border-primary text-primary bg-primary/5'
+                                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                        Histórico
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('images')}
+                        className={`px-6 py-3 border-b-2 font-mono text-xs uppercase tracking-widest transition-colors ${
+                            activeTab === 'images'
+                                ? 'border-primary text-primary bg-primary/5'
+                                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                        Imagens
+                    </button>
                 </div>
             </div>
 
-            {/* Dashboard Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-atlas flex flex-col justify-between min-h-[220px] group hover:border-primary/30 dark:hover:border-primary/30 transition-colors">
-                    <div>
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Última Avaliação</p>
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+            {activeTab === 'overview' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-atlas flex flex-col justify-between min-h-[220px]">
+                        <div>
+                            <div className="flex justify-between items-start mb-4">
+                                <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Última Avaliação</p>
+                                {lastEvaluation && <div className="w-2 h-2 rounded-full bg-emerald-500"></div>}
+                            </div>
+                            {lastEvaluation ? (
+                                <p className="font-serif text-5xl font-light text-slate-900 dark:text-white">
+                                    {lastEvaluation.score || '-'}
+                                    <span className="text-lg text-slate-400 dark:text-slate-500 font-sans">/10</span>
+                                </p>
+                            ) : (
+                                <p className="text-slate-500 dark:text-slate-400">Nenhuma avaliação encontrada</p>
+                            )}
                         </div>
-                        <p className="font-serif text-5xl font-light text-slate-900 dark:text-white">8.5<span className="text-lg text-slate-400 dark:text-slate-500 font-sans">/10</span></p>
+                        {lastEvaluation && (
+                            <div className="flex justify-between items-end mt-6">
+                                <p className="font-mono text-xs text-slate-500">DATA: {lastEvaluation.date}</p>
+                                <button
+                                    onClick={() => navigate(RoutePath.EVALUATIONS_DETAILS.replace(':id', lastEvaluation.id))}
+                                    className="text-primary font-mono text-xs uppercase tracking-wide hover:underline flex items-center gap-1"
+                                >
+                                    Ver Detalhes <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex justify-between items-end mt-6">
-                        <p className="font-mono text-xs text-slate-500">DATA: {patient.lastVisit}</p>
-                        <button className="text-primary font-mono text-xs uppercase tracking-wide hover:underline flex items-center gap-1">
-                            Ver Detalhes <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                        </button>
-                    </div>
-                </div>
 
-                <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-atlas flex flex-col justify-between min-h-[220px]">
-                    <div>
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Resumo Clínico</p>
-                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">medical_information</span>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide mb-1">Alergias</p>
-                                <p className="text-slate-900 dark:text-white">Penicilina</p>
+                    <div className="bg-white dark:bg-slate-900 p-6 border border-border dark:border-slate-800 shadow-atlas flex flex-col justify-between min-h-[220px]">
+                        <div>
+                            <div className="flex justify-between items-start mb-4">
+                                <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">Resumo Clínico</p>
+                                <button
+                                    onClick={() => setEditingMedical(!editingMedical)}
+                                    className="text-slate-400 hover:text-primary transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-base">{editingMedical ? 'close' : 'edit'}</span>
+                                </button>
                             </div>
-                            <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Condições</p>
-                                    <p className="text-slate-900 dark:text-white text-sm">Hipertensão</p>
+                            {!editingMedical ? (
+                                <div className="space-y-4">
+                                    {medicalInfo && medicalInfo.allergies.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide mb-1">Alergias</p>
+                                            <p className="text-slate-900 dark:text-white">{medicalInfo.allergies.join(', ')}</p>
+                                        </div>
+                                    )}
+                                    {medicalInfo && (medicalInfo.conditions.length > 0 || medicalInfo.medications.length > 0) && (
+                                        <>
+                                            <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {medicalInfo.conditions.length > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Condições</p>
+                                                        <p className="text-slate-900 dark:text-white text-sm">{medicalInfo.conditions.join(', ')}</p>
+                                                    </div>
+                                                )}
+                                                {medicalInfo.medications.length > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Medicação</p>
+                                                        {medicalInfo.medications.map((med, idx) => (
+                                                            <p key={idx} className="text-slate-900 dark:text-white text-sm">{med.name} {med.dosage}</p>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                    {(!medicalInfo || (medicalInfo.allergies.length === 0 && medicalInfo.conditions.length === 0 && medicalInfo.medications.length === 0)) && (
+                                        <p className="text-slate-400 text-sm">Nenhuma informação médica cadastrada</p>
+                                    )}
                                 </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Medicação</p>
-                                    <p className="text-slate-900 dark:text-white text-sm">Losartana 50mg</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Alergias (separadas por vírgula)"
+                                        value={medicalFormData.allergies.join(', ')}
+                                        onChange={(e) => setMedicalFormData({...medicalFormData, allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-primary outline-none"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Condições (separadas por vírgula)"
+                                        value={medicalFormData.conditions.join(', ')}
+                                        onChange={(e) => setMedicalFormData({...medicalFormData, conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-primary outline-none"
+                                    />
+                                    <button
+                                        onClick={handleSaveMedicalInfo}
+                                        className="w-full bg-primary text-white px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-primary-dark transition-colors"
+                                    >
+                                        Salvar
+                                    </button>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
+
+            {activeTab === 'history' && (
+                <div className="bg-white dark:bg-slate-900 border border-border dark:border-slate-800 shadow-atlas">
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                        <h2 className="font-serif text-2xl text-slate-900 dark:text-white italic">Histórico de Avaliações</h2>
+                        <p className="text-sm text-slate-500 mt-1">{patientEvaluations.length} avaliação(ões) encontrada(s)</p>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {patientEvaluations.length > 0 ? (
+                            patientEvaluations
+                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                .map((evaluation) => (
+                                    <div key={evaluation.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between">
+                                        <div className="flex items-center gap-6">
+                                            <div className="text-center">
+                                                <div className="w-16 h-16 rounded-full border-2 border-primary flex items-center justify-center bg-primary/5">
+                                                    <span className="font-mono text-xl font-bold text-primary">{evaluation.score || '-'}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-sans text-lg text-slate-900 dark:text-white font-semibold">{evaluation.name}</h3>
+                                                <div className="flex gap-4 mt-1 text-xs text-slate-500">
+                                                    <span className="font-mono">{evaluation.date}</span>
+                                                    <span>&bull;</span>
+                                                    <span className="font-mono">{evaluation.type}</span>
+                                                    <span>&bull;</span>
+                                                    <span className={`font-mono uppercase ${evaluation.status === 'Completed' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                        {evaluation.status === 'Completed' ? 'Completa' : 'Rascunho'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => navigate(RoutePath.EVALUATIONS_DETAILS.replace(':id', evaluation.id))}
+                                            className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs uppercase hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                        >
+                                            Ver Detalhes
+                                        </button>
+                                    </div>
+                                ))
+                        ) : (
+                            <div className="p-12 text-center text-slate-400">
+                                <span className="material-symbols-outlined text-6xl mb-4 block">assessment</span>
+                                <p className="font-mono text-sm">Nenhuma avaliação encontrada para este paciente</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'images' && (
+                <div className="bg-white dark:bg-slate-900 border border-border dark:border-slate-800 shadow-atlas p-6">
+                    <h2 className="font-serif text-2xl text-slate-900 dark:text-white italic mb-6">Galeria de Imagens</h2>
+                    <div className="text-center text-slate-400 py-12">
+                        <span className="material-symbols-outlined text-6xl mb-4 block">photo_library</span>
+                        <p className="font-mono text-sm">Funcionalidade de galeria em desenvolvimento</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

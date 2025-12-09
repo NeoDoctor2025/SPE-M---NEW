@@ -12,6 +12,23 @@ export interface Patient {
   photoUrl?: string;
 }
 
+export interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+}
+
+export interface PatientMedicalInfo {
+  id: string;
+  patientId: string;
+  allergies: string[];
+  conditions: string[];
+  medications: Medication[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Evaluation {
   id: string;
   patientId: string;

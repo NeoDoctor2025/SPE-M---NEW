@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Patient, Evaluation } from '../types';
+import { Patient, Evaluation, PatientMedicalInfo } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { isDevMode, DevStorage, generateMockData } from '../lib/devMode';
@@ -18,6 +18,9 @@ interface ClinicContextType {
   getEvaluation: (id: string) => Evaluation | undefined;
   refreshPatients: () => Promise<void>;
   refreshEvaluations: () => Promise<void>;
+  getMedicalInfo: (patientId: string) => Promise<PatientMedicalInfo | null>;
+  updateMedicalInfo: (patientId: string, info: Partial<Omit<PatientMedicalInfo, 'id' | 'patientId' | 'createdAt' | 'updatedAt'>>) => Promise<boolean>;
+  getPatientEvaluations: (patientId: string) => Evaluation[];
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -355,6 +358,105 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
   const getPatient = (id: string) => patients.find(p => p.id === id);
   const getEvaluation = (id: string) => evaluations.find(e => e.id === id);
 
+  const getMedicalInfo = async (patientId: string): Promise<PatientMedicalInfo | null> => {
+    if (!user) return null;
+
+    if (isDevMode()) {
+      const storedInfo = devStorage.get<PatientMedicalInfo[]>('medicalInfo') || [];
+      return storedInfo.find(info => info.patientId === patientId) || null;
+    }
+
+    const { data, error } = await supabase
+      .from('patient_medical_info')
+      .select('*')
+      .eq('patient_id', patientId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      patientId: data.patient_id,
+      allergies: data.allergies || [],
+      conditions: data.conditions || [],
+      medications: data.medications || [],
+      notes: data.notes || '',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  };
+
+  const updateMedicalInfo = async (
+    patientId: string,
+    info: Partial<Omit<PatientMedicalInfo, 'id' | 'patientId' | 'createdAt' | 'updatedAt'>>
+  ): Promise<boolean> => {
+    if (!user) return false;
+
+    if (isDevMode()) {
+      const storedInfo = devStorage.get<PatientMedicalInfo[]>('medicalInfo') || [];
+      const existingIndex = storedInfo.findIndex(i => i.patientId === patientId);
+
+      if (existingIndex >= 0) {
+        storedInfo[existingIndex] = { ...storedInfo[existingIndex], ...info };
+      } else {
+        storedInfo.push({
+          id: `medinfo-${Date.now()}`,
+          patientId,
+          allergies: info.allergies || [],
+          conditions: info.conditions || [],
+          medications: info.medications || [],
+          notes: info.notes || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      devStorage.set('medicalInfo', storedInfo);
+      return true;
+    }
+
+    const existingInfo = await getMedicalInfo(patientId);
+
+    if (existingInfo) {
+      const { error } = await supabase
+        .from('patient_medical_info')
+        .update({
+          allergies: info.allergies,
+          conditions: info.conditions,
+          medications: info.medications,
+          notes: info.notes,
+        })
+        .eq('patient_id', patientId);
+
+      if (error) {
+        console.error('Error updating medical info:', error);
+        return false;
+      }
+    } else {
+      const { error } = await supabase
+        .from('patient_medical_info')
+        .insert({
+          patient_id: patientId,
+          allergies: info.allergies || [],
+          conditions: info.conditions || [],
+          medications: info.medications || [],
+          notes: info.notes || '',
+        });
+
+      if (error) {
+        console.error('Error inserting medical info:', error);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const getPatientEvaluations = (patientId: string): Evaluation[] => {
+    return evaluations.filter(e => e.patientId === patientId);
+  };
+
   return (
     <ClinicContext.Provider value={{
       patients,
@@ -370,6 +472,9 @@ export const ClinicProvider = ({ children }: { children?: ReactNode }) => {
       getEvaluation,
       refreshPatients,
       refreshEvaluations,
+      getMedicalInfo,
+      updateMedicalInfo,
+      getPatientEvaluations,
     }}>
       {children}
     </ClinicContext.Provider>
