@@ -265,34 +265,36 @@ export const EvaluationWizard = () => {
             </div>
           </div>
 
-          <div
-            className="bg-white dark:bg-slate-900 p-1 border border-border dark:border-slate-800 shadow-atlas cursor-pointer group"
-            onClick={() => navigate(RoutePath.EVALUATIONS_CANVAS.replace(':id', 'temp'))}
-          >
-            <div className="bg-slate-900 aspect-square relative flex items-center justify-center overflow-hidden group-hover:ring-1 ring-primary transition-all">
-              <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/30"></div>
-              <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/30"></div>
-              <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/30"></div>
-              <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/30"></div>
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-10"></div>
+          {evaluationId && (
+            <div
+              className="bg-white dark:bg-slate-900 p-1 border border-border dark:border-slate-800 shadow-atlas cursor-pointer group"
+              onClick={() => navigate(RoutePath.EVALUATIONS_CANVAS.replace(':id', evaluationId))}
+            >
+              <div className="bg-slate-900 aspect-square relative flex items-center justify-center overflow-hidden group-hover:ring-1 ring-primary transition-all">
+                <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/30"></div>
+                <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/30"></div>
+                <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/30"></div>
+                <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/30"></div>
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-10"></div>
 
-              <span className="material-symbols-outlined text-6xl text-white/20 group-hover:text-white/40 transition-colors">
-                face
-              </span>
-              <div className="absolute bottom-2 right-2 font-mono text-[10px] text-white/40">CANVAS_V1</div>
-
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                <span className="font-mono text-xs text-white uppercase tracking-wider border border-white/50 px-3 py-1">
-                  Expandir
+                <span className="material-symbols-outlined text-6xl text-white/20 group-hover:text-white/40 transition-colors">
+                  face
                 </span>
+                <div className="absolute bottom-2 right-2 font-mono text-[10px] text-white/40">CANVAS_V1</div>
+
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                  <span className="font-mono text-xs text-white uppercase tracking-wider border border-white/50 px-3 py-1">
+                    Expandir
+                  </span>
+                </div>
+              </div>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-border dark:border-slate-700 text-center">
+                <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Mapeamento Anatômico
+                </p>
               </div>
             </div>
-            <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-border dark:border-slate-700 text-center">
-              <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Mapeamento Anatômico
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
